@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --background: #fff7e8;
+    --foreground: #341100;
+    --card: #FFFFFF;
+    --card-foreground: #341100;
+    --popover: #FFFFFF;
+    --popover-foreground: #341100;
+    --primary: #713105;
+    --primary-foreground: #fff7e8;
+    --secondary: #fcf3e3;
+    --secondary-foreground: #341100;
+    --muted: #fcf3e3;
+    --muted-foreground: #7f5e35;
+    --accent: #cfab71;
+    --accent-foreground: #341100;
+    --destructive: #EF4444;
+    --destructive-foreground: #FFFFFF;
+    --border: #e8decf;
+    --input: #e8decf;
+    --ring: #713105;
+    --radius: 0.75rem;
+  }
+}
+
+.font-serif {
+  font-family: var(--font-serif), Georgia, serif;
+}
+
+.font-sans {
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Hide default browser eye / reveal buttons */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear,
+input[type="password"]::-webkit-contacts-auto-fill-button,
+input[type="password"]::-webkit-credentials-auto-fill-button {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  position: absolute !important;
+  right: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+
