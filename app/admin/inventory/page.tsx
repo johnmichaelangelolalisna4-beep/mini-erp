@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { fetchProducts, createProduct, updateProduct, deleteProduct, Product } from "@/lib/services/admin";
+import { fetchProducts, createProduct, updateProduct, deleteProduct, createStockLog, Product } from "@/lib/services/admin";
 
 export function InventoryPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -76,7 +76,7 @@ export function InventoryPage() {
         ? "LOW STOCK" 
         : "IN STOCK";
 
-      await createProduct({
+      const created = await createProduct({
         sku: newProduct.sku,
         name: newProduct.name,
         category: newProduct.category,
@@ -85,6 +85,15 @@ export function InventoryPage() {
         reorder_level: reorderLevel,
         status,
       });
+
+      if (created && stockCount > 0) {
+        await createStockLog({
+          product_id: created.id,
+          change_type: "ADDITION",
+          quantity: stockCount,
+          reason: `Initial catalog intake: ${newProduct.name} (${stockCount} units)`,
+        });
+      }
 
       setIsModalOpen(false);
       setNewProduct({
@@ -127,6 +136,9 @@ export function InventoryPage() {
       const unitPrice = Number(editingProduct.unit_price) || 0;
       const reorderLevel = Number(editingProduct.reorder_level) || 0;
 
+      const previousProd = products.find((p) => p.id === editingProduct.id);
+      const stockDiff = stockCount - (previousProd ? previousProd.stock_count : 0);
+
       const status = stockCount === 0 
         ? "OUT OF STOCK" 
         : stockCount <= reorderLevel 
@@ -142,6 +154,15 @@ export function InventoryPage() {
         reorder_level: reorderLevel,
         status,
       });
+
+      if (stockDiff !== 0) {
+        await createStockLog({
+          product_id: editingProduct.id,
+          change_type: stockDiff > 0 ? "ADDITION" : "ADJUSTMENT",
+          quantity: stockDiff,
+          reason: `Stock adjustment: updated from ${previousProd?.stock_count || 0} to ${stockCount} units`,
+        });
+      }
 
       setIsEditModalOpen(false);
       setEditingProduct(null);

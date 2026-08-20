@@ -1,49 +1,57 @@
 "use client";
 
-import React from "react";
-import { Package, AlertTriangle, XCircle, Layers, Calendar } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Package, AlertTriangle, XCircle, Layers, Calendar, RefreshCw, ArrowRight } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { CategoryPieChart } from "@/components/category-pie-chart";
 import { RevenueBarChart } from "@/components/revenue-bar-chart";
-
-const warehouseAlertItems = [
-  {
-    sku: "LT-LAMP-088",
-    name: "Minimalist Walnut Table Lamp",
-    category: "Lighting",
-    stock: 6,
-    reorderLevel: 10,
-    status: "Low Stock",
-  },
-  {
-    sku: "HD-CUSH-014",
-    name: "Linen Textured Cushion Covers",
-    category: "Home Decor",
-    stock: 3,
-    reorderLevel: 15,
-    status: "Low Stock",
-  },
-  {
-    sku: "KW-TEAK-009",
-    name: "Japanese Teak Pour-Over Stand",
-    category: "Kitchenware",
-    stock: 0,
-    reorderLevel: 5,
-    status: "Out of Stock",
-  },
-  {
-    sku: "HD-MIRR-041",
-    name: "Arch Framed Brass Mirror",
-    category: "Home Decor",
-    stock: 2,
-    reorderLevel: 8,
-    status: "Low Stock",
-  },
-];
+import { fetchProducts, fetchOrders, Product, Order } from "@/lib/services/admin";
+import Link from "next/link";
 
 export default function StockOverviewPage() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [productsData, ordersData] = await Promise.all([
+        fetchProducts(),
+        fetchOrders(),
+      ]);
+      setProducts(productsData);
+      setOrders(ordersData);
+    } catch (err) {
+      console.error("Error loading inventory overview data from Supabase:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const now = new Date();
+  const currentMonthName = now.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+
+  // Dynamic KPI computations
+  const totalActiveSkus = products.length;
+  const itemsRequiringRestock = products.filter(
+    (p) => Number(p.stock_count || 0) <= Number(p.reorder_level || 0) && Number(p.stock_count || 0) > 0
+  ).length;
+  const outOfStockItems = products.filter((p) => Number(p.stock_count || 0) === 0).length;
+  const activeCategories = Array.from(new Set(products.map((p) => p.category || "General"))).length;
+
+  // Critical restock priority items (stock <= reorder level, sorted by stock ascending)
+  const criticalItems = products
+    .filter((p) => Number(p.stock_count || 0) <= Number(p.reorder_level || 0))
+    .sort((a, b) => Number(a.stock_count || 0) - Number(b.stock_count || 0))
+    .slice(0, 5);
+
   return (
     <div className="space-y-6">
       {/* Header Banner Card */}
@@ -59,90 +67,138 @@ export default function StockOverviewPage() {
               Stock Overview
             </h1>
             <p className="text-xs font-normal text-[#7f5e35] mt-1">
-              Macro warehouse metrics: Total Active SKUs, items requiring restock, out-of-stock items, and category distribution.
+              Live warehouse metrics: Total Active SKUs, items requiring restock, out-of-stock items, and collection category distribution.
             </p>
           </div>
 
-          <div className="relative w-44">
-            <Calendar className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#7f5e35]" />
-            <Input
-              type="text"
-              defaultValue="August 2026"
-              className="pl-9 bg-[#fff7e8] border-[#e8decf] text-xs font-normal text-[#7f5e35] focus:bg-white rounded-xl"
-            />
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 bg-[#fff7e8] border border-[#e8decf] px-3.5 py-1.5 rounded-xl text-xs font-medium text-[#713105]">
+              <Calendar className="w-3.5 h-3.5 text-[#cfab71]" />
+              <span>{currentMonthName}</span>
+            </div>
+
+            <Button
+              variant="outline"
+              onClick={loadData}
+              disabled={loading}
+              className="border-[#e8decf] text-[#713105] hover:bg-[#fff7e8] rounded-xl text-xs gap-1.5 cursor-pointer active:scale-95"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
           </div>
         </CardContent>
       </Card>
 
       {/* 4 Macro Warehouse KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="border-[#e8decf] bg-white p-4 rounded-xl">
+        <Card className="border-[#e8decf] bg-white p-4 rounded-xl shadow-xs">
           <div className="flex items-center justify-between text-[#7f5e35] text-xs font-semibold uppercase">
             <span>Total Active SKUs</span>
             <Package className="w-4 h-4 text-[#713105]" />
           </div>
-          <div className="text-2xl font-bold text-[#341100] mt-2">482</div>
+          <div className="text-2xl font-bold text-[#341100] mt-2">
+            {loading ? "..." : totalActiveSkus}
+          </div>
           <span className="text-[11px] text-[#7f5e35] font-normal">Catalog items</span>
         </Card>
 
-        <Card className="border-[#e8decf] bg-white p-4 rounded-xl">
+        <Card className="border-[#e8decf] bg-white p-4 rounded-xl shadow-xs">
           <div className="flex items-center justify-between text-[#7f5e35] text-xs font-semibold uppercase">
             <span>Items Requiring Restock</span>
             <AlertTriangle className="w-4 h-4 text-amber-600" />
           </div>
-          <div className="text-2xl font-bold text-[#713105] mt-2">14</div>
-          <span className="text-[11px] text-[#713105] font-semibold">Below reorder level</span>
+          <div className="text-2xl font-bold text-[#713105] mt-2">
+            {loading ? "..." : itemsRequiringRestock}
+          </div>
+          <span className="text-[11px] text-[#7f5e35] font-semibold">Below reorder level</span>
         </Card>
 
-        <Card className="border-[#e8decf] bg-white p-4 rounded-xl">
+        <Card className="border-[#e8decf] bg-white p-4 rounded-xl shadow-xs">
           <div className="flex items-center justify-between text-[#7f5e35] text-xs font-semibold uppercase">
             <span>Out-of-Stock Items</span>
             <XCircle className="w-4 h-4 text-red-600" />
           </div>
-          <div className="text-2xl font-bold text-red-700 mt-2">3</div>
+          <div className="text-2xl font-bold text-red-700 mt-2">
+            {loading ? "..." : outOfStockItems}
+          </div>
           <span className="text-[11px] text-red-700 font-semibold">Zero availability</span>
         </Card>
 
-        <Card className="border-[#e8decf] bg-white p-4 rounded-xl">
+        <Card className="border-[#e8decf] bg-white p-4 rounded-xl shadow-xs">
           <div className="flex items-center justify-between text-[#7f5e35] text-xs font-semibold uppercase">
             <span>Active Categories</span>
             <Layers className="w-4 h-4 text-[#713105]" />
           </div>
-          <div className="text-2xl font-bold text-[#341100] mt-2">12</div>
-          <span className="text-[11px] text-[#7f5e35] font-normal">Product categories</span>
+          <div className="text-2xl font-bold text-[#341100] mt-2">
+            {loading ? "..." : activeCategories}
+          </div>
+          <span className="text-[11px] text-[#7f5e35] font-normal">Product collections</span>
         </Card>
       </div>
 
       {/* Analytics & Restock Alert Split Section */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-7 flex flex-col space-y-6">
-          <RevenueBarChart />
+          <RevenueBarChart orders={orders} />
         </div>
 
         <div className="lg:col-span-5 flex flex-col space-y-6">
-          <CategoryPieChart />
+          <CategoryPieChart products={products} />
 
           {/* Quick Restock Alert Box */}
           <Card className="border-[#e8decf] bg-white rounded-xl p-5 shadow-xs">
             <CardHeader className="p-0 pb-3 border-b border-[#e8decf]">
               <CardTitle className="text-xs font-bold text-[#341100] uppercase tracking-wider flex items-center justify-between">
                 <span>Critical Restock Priority</span>
-                <span className="text-red-700 text-[10px]">4 High Alerts</span>
+                <span className={`${criticalItems.length > 0 ? "text-red-700" : "text-emerald-700"} text-[10px]`}>
+                  {criticalItems.length} High Alerts
+                </span>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0 pt-3 space-y-2 text-xs">
-              {warehouseAlertItems.map((item) => (
-                <div key={item.sku} className="flex items-center justify-between py-1.5 border-b border-[#e8decf]/50 last:border-0">
-                  <div>
-                    <div className="font-semibold text-[#341100]">{item.name}</div>
-                    <div className="text-[10px] text-[#7f5e35] font-mono">{item.sku}</div>
-                  </div>
-                  <div className="text-right">
-                    <span className="font-bold text-red-700">{item.stock} units left</span>
-                    <div className="text-[10px] text-[#7f5e35]">Reorder at: {item.reorderLevel}</div>
-                  </div>
+              {loading ? (
+                <div className="py-4 text-center text-[#7f5e35] text-xs">
+                  Checking safety stock thresholds...
                 </div>
-              ))}
+              ) : criticalItems.length === 0 ? (
+                <div className="py-4 text-center text-emerald-800 text-xs font-medium">
+                  ✓ All furniture models currently meet safety stock thresholds.
+                </div>
+              ) : (
+                criticalItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between py-2 border-b border-[#e8decf]/50 last:border-0"
+                  >
+                    <div>
+                      <div className="font-semibold text-[#341100]">{item.name}</div>
+                      <div className="text-[10px] text-[#7f5e35] font-mono">
+                        {item.sku} • {item.category}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className={`font-bold ${item.stock_count === 0 ? "text-red-700" : "text-amber-700"}`}>
+                        {item.stock_count} units left
+                      </span>
+                      <div className="text-[10px] text-[#7f5e35]">
+                        Reorder at: {item.reorder_level}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+
+              {criticalItems.length > 0 && (
+                <div className="pt-2 border-t border-[#e8decf]/60 text-right">
+                  <Link
+                    href="/inventory/low-stock"
+                    className="text-xs text-[#713105] font-semibold hover:underline inline-flex items-center gap-1"
+                  >
+                    Manage Low Stock Reorders <ArrowRight className="w-3 h-3" />
+                  </Link>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

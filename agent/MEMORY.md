@@ -28,10 +28,10 @@ All UI components strictly adhere to the Warm Espresso & Timber color palette:
 * `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Supabase anon key configured
 * `SUPABASE_SERVICE_ROLE_KEY`: Supabase service role key configured
 
-### B. SSR Client Helpers & Middleware
+### B. SSR Client Helpers & Proxy
 * [`lib/supabase/client.ts`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/lib/supabase/client.ts): Browser client helper (`createBrowserClient`).
 * [`lib/supabase/server.ts`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/lib/supabase/server.ts): Server component & admin service role client helper.
-* [`lib/supabase/middleware.ts`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/lib/supabase/middleware.ts) & [`middleware.ts`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/middleware.ts): Next.js session refresh middleware.
+* [`lib/supabase/proxy.ts`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/lib/supabase/proxy.ts) & [`proxy.ts`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/proxy.ts): Next.js session refresh proxy (Next.js 16+ convention).
 
 ### C. Admin Auth API Endpoints
 * **[`app/api/admin/create-user/route.ts`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/app/api/admin/create-user/route.ts)**: Registers employee in Supabase Authentication (`auth.users`) with `email_confirm: true` and syncs with `public.profiles`.
@@ -71,6 +71,11 @@ All UI components strictly adhere to the Warm Espresso & Timber color palette:
 6. **Product Edit Feature**: Full editing modal for SKU, Name, Collection, Price, Stock, and Threshold in Admin Inventory.
 7. **Auto-Calculated Order Totals**: Automatically computes and fills out `Total Amount = Unit Price × Quantity` in Create Order modal.
 8. **Custom Warm Espresso Dropdowns**: Replaced native browser select elements with custom styled interactive dropdowns.
+9. **Dynamic Excel Summary & Sales Report Export**: Multi-sheet formatted Excel workbook export (`.xlsx`) via [`lib/services/excel-export.ts`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/lib/services/excel-export.ts) with live Supabase data (Executive Summary, Detailed Sales Orders, General Ledger, and Product Catalog Valuation).
+10. **Dynamic Enterprise Audit & System Logs with Excel Export**: Real-time unified activity trail tracking stock additions, deductions, order fulfillments, staff registrations, and security triggers ([`fetchUnifiedAuditLogs`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/lib/services/admin.ts)) with dynamic multi-sheet Excel export ([`exportAuditLogsReport`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/lib/services/excel-export.ts)).
+11. **Order Quantity Monitoring Column**: Added styled **Quantity** column between *Total Amount* and *Status* in Sales & Orders table and Excel export, joined directly with `order_items` in Supabase.
+12. **Sales Portal 100% Dynamic Overhaul**: Removed all hardcoded mock arrays (`myRecentOrders`, `mockProducts`, placeholder quotas, and fake names like John Miller) across [`app/sales/overview/page.tsx`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/app/sales/overview/page.tsx) and [`app/sales/inventory/page.tsx`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/app/sales/inventory/page.tsx), tying all metrics, commission calculations, and recent order tables directly to authenticated Supabase user profiles and orders.
+13. **Inventory Manager Portal 100% Dynamic Overhaul**: Removed all hardcoded mock arrays (`warehouseAlertItems`, `initialCatalog`, `lowStockItems`) across [`app/inventory/overview/page.tsx`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/app/inventory/overview/page.tsx), [`app/inventory/catalog/page.tsx`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/app/inventory/catalog/page.tsx), and [`app/inventory/low-stock/page.tsx`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/app/inventory/low-stock/page.tsx). Connected live Supabase CRUD, real-time KPI metrics, dynamic restock intake modal with automatic stock log additions, and live category/revenue charts.
 
 ---
 

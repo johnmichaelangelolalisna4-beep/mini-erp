@@ -13,14 +13,25 @@ export interface Product {
   created_at?: string;
 }
 
+export interface OrderItem {
+  id?: string;
+  order_id?: string;
+  product_id?: string;
+  quantity: number;
+  unit_price: number;
+  products?: { name: string; sku: string };
+}
+
 export interface Order {
   id: string;
   order_number: string;
   customer_name: string;
   total_amount: number;
+  quantity?: number;
   status: 'COMPLETED' | 'PENDING' | 'CANCELLED';
   created_by_role: string;
   created_at: string;
+  order_items?: OrderItem[];
 }
 
 export interface Invoice {
@@ -226,22 +237,63 @@ export async function fetchOrders(): Promise<Order[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('orders')
-    .select('*')
+    .select('*, order_items(*, products(name, sku))')
     .order('created_at', { ascending: false });
 
-  if (error) throw error;
-  return data || [];
+  if (error) {
+    console.warn('Orders join fetch notice, using fallback:', error);
+    const fallbackRes = await supabase.from('orders').select('*').order('created_at', { ascending: false });
+    return (fallbackRes.data || []).map((o: any) => ({
+      ...o,
+      quantity: 1,
+    }));
+  }
+
+  return (data || []).map((order: any) => {
+    const items = order.order_items || [];
+    const totalQty = items.reduce((sum: number, item: any) => sum + (Number(item.quantity) || 0), 0);
+    return {
+      ...order,
+      quantity: totalQty > 0 ? totalQty : 1,
+    };
+  });
 }
 
-export async function createOrder(order: Omit<Order, 'id' | 'created_at'>) {
+export async function createOrder(order: Omit<Order, 'id' | 'created_at' | 'order_items'>) {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('orders')
-    .insert([order])
+    .insert([{
+      order_number: order.order_number,
+      customer_name: order.customer_name,
+      total_amount: order.total_amount,
+      status: order.status,
+      created_by_role: order.created_by_role,
+    }])
     .select()
     .single();
 
   if (error) throw error;
+  return data;
+}
+
+export async function createOrderItem(item: {
+  order_id: string;
+  product_id: string;
+  quantity: number;
+  unit_price: number;
+}) {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('order_items')
+    .insert([item])
+    .select()
+    .single();
+
+  if (error) {
+    console.warn('Order item insert notice:', error);
+    return null;
+  }
   return data;
 }
 
@@ -365,7 +417,21 @@ export async function deleteProfile(id: string) {
   return true;
 }
 
-// 7. Stock Logs
+// 7. Stock Logs & Unified System Audit
+export interface UnifiedAuditLog {
+  id: string;
+  timestamp: string;
+  module: 'Inventory' | 'Sales & Orders' | 'User & Auth' | 'Finance' | 'Catalog';
+  action: string;
+  entity_name: string;
+  entity_type: string;
+  actor: string;
+  quantity_or_value?: string;
+  level: 'INFO' | 'SUCCESS' | 'WARNING' | 'SECURITY';
+  description: string;
+  raw_id?: string;
+}
+
 export async function fetchStockLogs(): Promise<StockLog[]> {
   const supabase = createClient();
   const { data, error } = await supabase
@@ -373,6 +439,166 @@ export async function fetchStockLogs(): Promise<StockLog[]> {
     .select('*, products(name, sku, unit_price)')
     .order('created_at', { ascending: false });
 
-  if (error) throw error;
+  if (error) {
+    console.warn('Stock logs fetch notice:', error);
+    return [];
+  }
   return data || [];
+}
+
+export async function createStockLog(log: {
+  product_id: string;
+  change_type: string;
+  quantity: number;
+  reason?: string;
+}) {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('stock_logs')
+    .insert([log])
+    .select()
+    .single();
+
+  if (error) {
+    console.warn('Failed to insert stock log:', error);
+    return null;
+  }
+  return data;
+}
+
+export async function fetchUnifiedAuditLogs(): Promise<{
+  logs: UnifiedAuditLog[];
+  metrics: {
+    totalEvents: number;
+    stockAdditions: number;
+    stockDeductions: number;
+    securityAlerts: number;
+  };
+}> {
+  const supabase = createClient();
+
+  const [stockLogsRes, ordersRes, productsRes, profilesRes] = await Promise.all([
+    supabase.from('stock_logs').select('*, products(name, sku, unit_price)').order('created_at', { ascending: false }),
+    supabase.from('orders').select('*').order('created_at', { ascending: false }),
+    supabase.from('products').select('*').order('created_at', { ascending: false }),
+    supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+  ]);
+
+  const stockLogs = stockLogsRes.data || [];
+  const orders = ordersRes.data || [];
+  const products: Product[] = productsRes.data || [];
+  const profiles: Profile[] = profilesRes.data || [];
+
+  const activityTrail: UnifiedAuditLog[] = [];
+  let stockAdditionsCount = 0;
+  let stockDeductionsCount = 0;
+  let securityAlertsCount = 0;
+
+  // 1. Process Stock Logs
+  stockLogs.forEach((log: any) => {
+    const isAddition = log.change_type === 'ADDITION';
+    const isDeduction = log.change_type === 'DEDUCTION';
+    if (isAddition) stockAdditionsCount++;
+    if (isDeduction) stockDeductionsCount++;
+
+    activityTrail.push({
+      id: `LOG-STK-${log.id.slice(0, 8)}`,
+      timestamp: log.created_at || new Date().toISOString(),
+      module: 'Inventory',
+      action: isAddition ? 'STOCK_ADDITION' : isDeduction ? 'STOCK_DEDUCTION' : 'STOCK_ADJUSTMENT',
+      entity_name: log.products?.name || 'Inventory Item',
+      entity_type: log.products?.sku ? `SKU: ${log.products.sku}` : 'Product Stock',
+      actor: isAddition ? 'Supplier Restock' : isDeduction ? 'Order Fulfillment' : 'Inventory Admin',
+      quantity_or_value: `${Number(log.quantity) > 0 ? '+' : ''}${log.quantity} units`,
+      level: isAddition ? 'SUCCESS' : 'INFO',
+      description: log.reason || (isAddition ? `Restocked ${log.quantity} units` : `Deducted ${Math.abs(log.quantity)} units`),
+      raw_id: log.id,
+    });
+  });
+
+  // 2. Process Orders
+  orders.forEach((order: Order) => {
+    const isCompleted = order.status === 'COMPLETED';
+    const isCancelled = order.status === 'CANCELLED';
+
+    activityTrail.push({
+      id: `LOG-ORD-${order.id.slice(0, 8)}`,
+      timestamp: order.created_at || new Date().toISOString(),
+      module: 'Sales & Orders',
+      action: isCompleted ? 'ORDER_COMPLETED' : isCancelled ? 'ORDER_CANCELLED' : 'ORDER_CREATED',
+      entity_name: order.order_number || `ORD-${order.id.slice(0, 6).toUpperCase()}`,
+      entity_type: `Client: ${order.customer_name}`,
+      actor: order.created_by_role || 'Sales Rep',
+      quantity_or_value: `$${Number(order.total_amount || 0).toFixed(2)}`,
+      level: isCompleted ? 'SUCCESS' : isCancelled ? 'WARNING' : 'INFO',
+      description: `Order ${order.order_number} for customer "${order.customer_name}" marked as ${order.status}. Total: $${Number(order.total_amount).toFixed(2)}.`,
+      raw_id: order.id,
+    });
+  });
+
+  // 3. Process Product Catalog additions & Low Stock Alerts
+  products.forEach((prod: Product) => {
+    // Initial catalog entry
+    activityTrail.push({
+      id: `LOG-PRD-${prod.id.slice(0, 8)}`,
+      timestamp: prod.created_at || new Date().toISOString(),
+      module: 'Catalog',
+      action: 'PRODUCT_CATALOGED',
+      entity_name: prod.name,
+      entity_type: `SKU: ${prod.sku}`,
+      actor: 'Inventory Admin',
+      quantity_or_value: `${prod.stock_count} in stock ($${Number(prod.unit_price).toFixed(2)})`,
+      level: 'INFO',
+      description: `Cataloged piece "${prod.name}" in "${prod.category}" collection with initial stock of ${prod.stock_count} units.`,
+      raw_id: prod.id,
+    });
+
+    // Low stock trigger alert
+    if (Number(prod.stock_count) <= Number(prod.reorder_level)) {
+      securityAlertsCount++;
+      activityTrail.push({
+        id: `ALERT-STK-${prod.id.slice(0, 8)}`,
+        timestamp: prod.created_at || new Date().toISOString(),
+        module: 'Inventory',
+        action: prod.stock_count === 0 ? 'OUT_OF_STOCK_TRIGGER' : 'LOW_STOCK_TRIGGER',
+        entity_name: prod.name,
+        entity_type: `SKU: ${prod.sku}`,
+        actor: 'System Guard',
+        quantity_or_value: `${prod.stock_count} units left`,
+        level: 'WARNING',
+        description: `Alert: Stock level for "${prod.name}" (${prod.stock_count} units) has breached safety reorder threshold (${prod.reorder_level} units).`,
+        raw_id: prod.id,
+      });
+    }
+  });
+
+  // 4. Process Staff User Accounts
+  profiles.forEach((profile: Profile) => {
+    activityTrail.push({
+      id: `LOG-USR-${profile.id.slice(0, 8)}`,
+      timestamp: profile.created_at || new Date().toISOString(),
+      module: 'User & Auth',
+      action: 'STAFF_REGISTERED',
+      entity_name: profile.full_name,
+      entity_type: `Role: ${profile.role}`,
+      actor: 'System Admin',
+      quantity_or_value: profile.role,
+      level: 'SECURITY',
+      description: `Staff profile activated for ${profile.full_name} (${profile.email}) with ${profile.role} permissions.`,
+      raw_id: profile.id,
+    });
+  });
+
+  // Sort chronological descending (most recent first)
+  activityTrail.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+  return {
+    logs: activityTrail,
+    metrics: {
+      totalEvents: activityTrail.length,
+      stockAdditions: stockAdditionsCount,
+      stockDeductions: stockDeductionsCount,
+      securityAlerts: securityAlertsCount,
+    },
+  };
 }

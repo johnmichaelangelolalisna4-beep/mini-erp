@@ -1,12 +1,26 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Download, Banknote, ArrowUpRight, ArrowDownLeft, PieChart, FileSpreadsheet, Filter, RefreshCw, Search } from "lucide-react";
+import {
+  Download,
+  Banknote,
+  ArrowUpRight,
+  ArrowDownLeft,
+  PieChart,
+  FileSpreadsheet,
+  Filter,
+  RefreshCw,
+  Search,
+  CheckCircle2,
+  AlertCircle,
+  FileDown,
+} from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { fetchFinancialOverview, FinancialOverview } from "@/lib/services/admin";
+import { exportFinanceSummaryReport } from "@/lib/services/excel-export";
 
 export function FinancePage() {
   const [financialData, setFinancialData] = useState<FinancialOverview>({
@@ -17,7 +31,14 @@ export function FinancePage() {
     ledger: [],
   });
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [filterType, setFilterType] = useState<"ALL" | "Income" | "Expense">("ALL");
+  const [exportNotice, setExportNotice] = useState<{
+    type: "success" | "error";
+    text: string;
+    fileName?: string;
+  } | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -35,15 +56,82 @@ export function FinancePage() {
     loadData();
   }, []);
 
-  const filteredLedger = financialData.ledger.filter(
-    (item) =>
+  const handleExportReport = async () => {
+    setExporting(true);
+    setExportNotice(null);
+    try {
+      const result = await exportFinanceSummaryReport({
+        fileNamePrefix: "Mini_ERP_Sales_Financial_Summary",
+      });
+      setExportNotice({
+        type: "success",
+        text: "Sales & Financial Summary Excel report downloaded successfully!",
+        fileName: result.fileName,
+      });
+      setTimeout(() => {
+        setExportNotice(null);
+      }, 6000);
+    } catch (err) {
+      console.error("Error exporting Excel summary report:", err);
+      setExportNotice({
+        type: "error",
+        text: "Failed to generate Excel report. Please check database connection and try again.",
+      });
+      setTimeout(() => {
+        setExportNotice(null);
+      }, 6000);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const filteredLedger = financialData.ledger.filter((item) => {
+    const matchesSearch =
       item.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.description.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+      item.description.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesFilter =
+      filterType === "ALL" ? true : item.type === filterType;
+
+    return matchesSearch && matchesFilter;
+  });
 
   return (
     <div className="space-y-6">
+      {/* Export Notification Toast */}
+      {exportNotice && (
+        <div
+          className={`flex items-center justify-between p-4 rounded-xl text-xs font-medium border transition-all duration-300 animate-in fade-in-50 slide-in-from-top-2 ${
+            exportNotice.type === "success"
+              ? "bg-emerald-50 text-emerald-900 border-emerald-200 shadow-xs"
+              : "bg-red-50 text-red-900 border-red-200 shadow-xs"
+          }`}
+        >
+          <div className="flex items-center gap-2.5">
+            {exportNotice.type === "success" ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+            )}
+            <div>
+              <p className="font-semibold">{exportNotice.text}</p>
+              {exportNotice.fileName && (
+                <p className="text-[11px] text-emerald-700 mt-0.5 font-mono">
+                  File: {exportNotice.fileName}
+                </p>
+              )}
+            </div>
+          </div>
+          <button
+            onClick={() => setExportNotice(null)}
+            className="text-emerald-700 hover:text-emerald-900 font-bold px-2 py-1 cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Header Banner */}
       <Card className="border-[#e8decf] shadow-xs rounded-2xl bg-white p-6">
         <CardContent className="p-0 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -65,15 +153,28 @@ export function FinancePage() {
             <Button
               variant="outline"
               onClick={loadData}
-              disabled={loading}
+              disabled={loading || exporting}
               className="border-[#e8decf] text-[#713105] hover:bg-[#fff7e8] rounded-xl text-xs gap-1.5 cursor-pointer active:scale-95"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
               Refresh
             </Button>
-            <Button className="bg-[#713105] text-[#fff7e8] hover:bg-[#4f351c] gap-2 rounded-xl text-xs font-semibold px-4 py-2 cursor-pointer active:scale-95">
-              <Download className="w-4 h-4" />
-              Export Summary Report
+            <Button
+              onClick={handleExportReport}
+              disabled={exporting}
+              className="bg-[#713105] text-[#fff7e8] hover:bg-[#4f351c] gap-2 rounded-xl text-xs font-semibold px-4 py-2 cursor-pointer active:scale-95 transition-all shadow-xs disabled:opacity-70"
+            >
+              {exporting ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin text-[#cfab71]" />
+                  Generating Excel...
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4 text-[#cfab71]" />
+                  Export Summary Report
+                </>
+              )}
             </Button>
           </div>
         </CardContent>
@@ -129,24 +230,73 @@ export function FinancePage() {
       {/* Financial Ledger Table */}
       <Card className="border-[#e8decf] shadow-xs rounded-xl bg-white overflow-hidden">
         <CardHeader className="p-5 border-b border-[#e8decf] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <CardTitle className="text-sm font-semibold text-[#4f351c] flex items-center gap-2">
-            <FileSpreadsheet className="w-4 h-4 text-[#713105]" />
-            General Ledger & Financial Entries ({filteredLedger.length})
-          </CardTitle>
+          <div>
+            <CardTitle className="text-sm font-semibold text-[#4f351c] flex items-center gap-2">
+              <FileSpreadsheet className="w-4 h-4 text-[#713105]" />
+              General Ledger & Financial Entries ({filteredLedger.length})
+            </CardTitle>
+            <p className="text-[11px] text-[#7f5e35] mt-0.5">
+              Detailed chronological record of sales income, inventory expenses, and account balances.
+            </p>
+          </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            {/* Filter Toggle Buttons */}
+            <div className="flex items-center bg-[#fff7e8] border border-[#e8decf] rounded-xl p-0.5 text-xs">
+              <button
+                type="button"
+                onClick={() => setFilterType("ALL")}
+                className={`px-3 py-1 rounded-lg font-medium transition-colors cursor-pointer ${
+                  filterType === "ALL"
+                    ? "bg-[#713105] text-[#fff7e8] shadow-xs"
+                    : "text-[#7f5e35] hover:text-[#341100]"
+                }`}
+              >
+                All
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterType("Income")}
+                className={`px-3 py-1 rounded-lg font-medium transition-colors cursor-pointer ${
+                  filterType === "Income"
+                    ? "bg-emerald-700 text-white shadow-xs"
+                    : "text-[#7f5e35] hover:text-[#341100]"
+                }`}
+              >
+                Income
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterType("Expense")}
+                className={`px-3 py-1 rounded-lg font-medium transition-colors cursor-pointer ${
+                  filterType === "Expense"
+                    ? "bg-red-700 text-white shadow-xs"
+                    : "text-[#7f5e35] hover:text-[#341100]"
+                }`}
+              >
+                Expenses
+              </button>
+            </div>
+
             <div className="relative flex-1 md:w-64">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#7f5e35]" />
               <Input
-                placeholder="Search transaction ID, category, or detail..."
+                placeholder="Search transaction ID, category..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9 bg-[#fff7e8] border-[#e8decf] text-xs text-[#341100] rounded-xl placeholder:text-[#7f5e35]/60"
               />
             </div>
-            <Button variant="outline" className="border-[#e8decf] text-[#4f351c] hover:bg-[#fff7e8] gap-1.5 text-xs rounded-xl">
-              <Filter className="w-3.5 h-3.5" />
-              Filter
+
+            <Button
+              variant="outline"
+              onClick={handleExportReport}
+              disabled={exporting}
+              className="border-[#e8decf] text-[#4f351c] hover:bg-[#fff7e8] gap-1.5 text-xs rounded-xl cursor-pointer"
+              title="Download Excel spreadsheet"
+            >
+              <FileDown className="w-3.5 h-3.5 text-[#713105]" />
+              Excel
             </Button>
           </div>
         </CardHeader>
@@ -174,7 +324,7 @@ export function FinancePage() {
               ) : filteredLedger.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-8 text-center text-xs text-[#7f5e35]">
-                    No financial ledger transactions recorded yet. Create orders to view live transactions.
+                    No financial ledger transactions found matching criteria.
                   </td>
                 </tr>
               ) : (

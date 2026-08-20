@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { fetchOrders, createOrder, updateOrderStatus, fetchProducts, updateProduct, Order, Product } from "@/lib/services/admin";
+import { fetchOrders, createOrder, updateOrderStatus, fetchProducts, updateProduct, createStockLog, createOrderItem, Order, Product } from "@/lib/services/admin";
 
 export function SalesPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -122,7 +122,7 @@ export function SalesPage() {
 
       const orderAmount = Number(newOrder.total_amount) || (selectedProd ? Number(selectedProd.unit_price) * (Number(quantity) || 1) : 0);
 
-      await createOrder({
+      const createdOrder = await createOrder({
         order_number: orderNumber,
         customer_name: newOrder.customer_name,
         total_amount: Number(orderAmount),
@@ -130,12 +130,29 @@ export function SalesPage() {
         created_by_role: "Admin",
       });
 
+      const orderQty = Number(quantity) || 1;
+
+      // Create order item record in Supabase
+      if (createdOrder && selectedProd) {
+        await createOrderItem({
+          order_id: createdOrder.id,
+          product_id: selectedProd.id,
+          quantity: orderQty,
+          unit_price: Number(selectedProd.unit_price),
+        });
+      }
+
       // If order is completed and a product was selected, update product stock in Supabase
       if (selectedProd && newOrder.status === "COMPLETED") {
-        const orderQty = Number(quantity) || 1;
         const newStock = Math.max(0, selectedProd.stock_count - orderQty);
         const newStatus = newStock === 0 ? "OUT OF STOCK" : newStock <= selectedProd.reorder_level ? "LOW STOCK" : "IN STOCK";
         await updateProduct(selectedProd.id, { stock_count: newStock, status: newStatus });
+        await createStockLog({
+          product_id: selectedProd.id,
+          change_type: "DEDUCTION",
+          quantity: -orderQty,
+          reason: `Order ${orderNumber} for client "${newOrder.customer_name}" fulfilled`,
+        });
       }
 
       setIsModalOpen(false);
@@ -296,6 +313,7 @@ export function SalesPage() {
                 <th className="py-3 px-4">Client / Studio</th>
                 <th className="py-3 px-4">Created By</th>
                 <th className="py-3 px-4">Total Amount</th>
+                <th className="py-3 px-4">Quantity</th>
                 <th className="py-3 px-4">Status</th>
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
@@ -303,13 +321,13 @@ export function SalesPage() {
             <tbody className="divide-y divide-[#e8decf]/60">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-xs text-[#7f5e35]">
+                  <td colSpan={7} className="py-8 text-center text-xs text-[#7f5e35]">
                     Loading orders from Supabase...
                   </td>
                 </tr>
               ) : filteredOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-xs text-[#7f5e35]">
+                  <td colSpan={7} className="py-8 text-center text-xs text-[#7f5e35]">
                     No client orders found. Click "Create Client Order" to add one.
                   </td>
                 </tr>
@@ -321,6 +339,11 @@ export function SalesPage() {
                     <td className="py-3.5 px-4 text-[#7f5e35]">{order.created_by_role}</td>
                     <td className="py-3.5 px-4 font-semibold text-[#341100]">
                       ${Number(order.total_amount).toFixed(2)}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-[#fff7e8] border border-[#e8decf] font-mono text-xs font-bold text-[#713105]">
+                        {order.quantity || 1} {Number(order.quantity) === 1 ? "unit" : "units"}
+                      </span>
                     </td>
                     <td className="py-3.5 px-4">
                       {order.status === "COMPLETED" && (
