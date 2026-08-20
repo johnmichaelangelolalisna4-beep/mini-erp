@@ -4,25 +4,27 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-lg text-xs font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-stone-400 disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98]",
+  "inline-flex items-center justify-center whitespace-nowrap rounded-xl text-xs font-semibold transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#cfab71] focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98] cursor-pointer",
   {
     variants: {
       variant: {
         default:
-          "bg-[#2C221E] text-white shadow-xs hover:bg-[#3D302B]",
+          "bg-[#713105] text-[#fff7e8] shadow-xs hover:bg-[#341100] active:bg-[#341100]",
         destructive:
-          "bg-red-600 text-white shadow-xs hover:bg-red-700",
+          "bg-red-700 text-white shadow-xs hover:bg-red-800 border border-red-800",
         outline:
-          "border border-stone-200 bg-white shadow-xs hover:bg-stone-50 text-stone-700",
+          "border border-[#e8decf] bg-white shadow-2xs hover:bg-[#fff7e8] hover:border-[#cfab71] text-[#713105]",
         secondary:
-          "bg-stone-100 text-stone-900 shadow-xs hover:bg-stone-200/80",
-        ghost: "hover:bg-stone-100 hover:text-stone-900 text-stone-600",
-        link: "text-stone-900 underline-offset-4 hover:underline",
+          "bg-[#fff7e8] text-[#713105] border border-[#e8decf] shadow-2xs hover:bg-[#fcf3e3] hover:border-[#cfab71]/60",
+        ghost:
+          "hover:bg-[#fff7e8] text-[#4f351c] hover:text-[#341100]",
+        link:
+          "text-[#713105] underline-offset-4 hover:underline hover:text-[#341100]",
       },
       size: {
         default: "h-9 px-4 py-2",
-        sm: "h-8 rounded-md px-3 text-xs",
-        lg: "h-10 rounded-md px-8",
+        sm: "h-8 rounded-lg px-3 text-xs",
+        lg: "h-10 rounded-xl px-8 text-sm",
         icon: "h-9 w-9",
       },
     },

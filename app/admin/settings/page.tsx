@@ -6,9 +6,12 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { CustomSelect } from "@/components/ui/custom-select";
 
 export function SettingsPage() {
   const [isSaved, setIsSaved] = useState(false);
+  const [currency, setCurrency] = useState("USD");
+  const [fiscalMonth, setFiscalMonth] = useState("January");
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,11 +116,16 @@ export function SettingsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block font-medium text-[#4f351c] mb-1">Default Base Currency</label>
-                  <select className="w-full h-9 bg-[#fff7e8] border border-[#e8decf] rounded-xl px-3 text-xs text-[#341100] focus:outline-hidden">
-                    <option value="USD">USD ($) - US Dollar</option>
-                    <option value="EUR">EUR (€) - Euro</option>
-                    <option value="PHP">PHP (₱) - Philippine Peso</option>
-                  </select>
+                  <CustomSelect
+                    value={currency}
+                    onChange={setCurrency}
+                    options={[
+                      { value: "USD", label: "USD ($) - US Dollar" },
+                      { value: "EUR", label: "EUR (€) - Euro" },
+                      { value: "PHP", label: "PHP (₱) - Philippine Peso" },
+                    ]}
+                    className="h-9 text-xs"
+                  />
                 </div>
                 <div>
                   <label className="block font-medium text-[#4f351c] mb-1">Default Tax Provision (%)</label>
@@ -138,11 +146,16 @@ export function SettingsPage() {
                 </div>
                 <div>
                   <label className="block font-medium text-[#4f351c] mb-1">Fiscal Year Start Month</label>
-                  <select className="w-full h-9 bg-[#fff7e8] border border-[#e8decf] rounded-xl px-3 text-xs text-[#341100] focus:outline-hidden">
-                    <option value="January">January</option>
-                    <option value="April">April</option>
-                    <option value="July">July</option>
-                  </select>
+                  <CustomSelect
+                    value={fiscalMonth}
+                    onChange={setFiscalMonth}
+                    options={[
+                      { value: "January", label: "January" },
+                      { value: "April", label: "April" },
+                      { value: "July", label: "July" },
+                    ]}
+                    className="h-9 text-xs"
+                  />
                 </div>
               </div>
             </CardContent>

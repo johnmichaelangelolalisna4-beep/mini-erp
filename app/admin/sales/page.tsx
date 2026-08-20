@@ -1,11 +1,14 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
-import { Search, Filter, Plus, ShoppingCart, Clock, CheckCircle2, DollarSign, RefreshCw, X, Package, Calculator, ChevronDown, Check } from "lucide-react";
+import { Search, Filter, Plus, ShoppingCart, Clock, CheckCircle2, DollarSign, RefreshCw, X, Package, Calculator, ChevronDown, Check, Loader2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { CustomSelect } from "@/components/ui/custom-select";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { ToastNotification, ToastData } from "@/components/ui/toast-notification";
 import { fetchOrders, createOrder, updateOrderStatus, fetchProducts, updateProduct, createStockLog, createOrderItem, Order, Product } from "@/lib/services/admin";
 
 export function SalesPage() {
@@ -15,6 +18,7 @@ export function SalesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [toast, setToast] = useState<ToastData | null>(null);
 
   // Custom Dropdown Open States
   const [isProductDropdownOpen, setIsProductDropdownOpen] = useState(false);
@@ -161,10 +165,19 @@ export function SalesPage() {
         total_amount: "",
         status: "PENDING",
       });
+      setToast({
+        type: "success",
+        title: "Order Placed Successfully",
+        message: `Client order "${orderNumber}" for ${newOrder.customer_name} has been recorded.`,
+      });
       loadData();
     } catch (err) {
       console.error("Error creating order:", err);
-      alert("Failed to create order.");
+      setToast({
+        type: "error",
+        title: "Order Creation Failed",
+        message: "Failed to create client order. Please verify values and try again.",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -173,9 +186,19 @@ export function SalesPage() {
   const handleStatusChange = async (id: string, newStatus: "COMPLETED" | "PENDING" | "CANCELLED") => {
     try {
       await updateOrderStatus(id, newStatus);
+      setToast({
+        type: "success",
+        title: "Order Status Updated",
+        message: `Order status changed to ${newStatus}.`,
+      });
       loadData();
     } catch (err) {
       console.error("Error updating order status:", err);
+      setToast({
+        type: "error",
+        title: "Status Update Failed",
+        message: "Could not update order status in Supabase.",
+      });
     }
   };
 
@@ -320,11 +343,7 @@ export function SalesPage() {
             </thead>
             <tbody className="divide-y divide-[#e8decf]/60">
               {loading ? (
-                <tr>
-                  <td colSpan={7} className="py-8 text-center text-xs text-[#7f5e35]">
-                    Loading orders from Supabase...
-                  </td>
-                </tr>
+                <TableSkeleton columns={7} rows={6} />
               ) : filteredOrders.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-8 text-center text-xs text-[#7f5e35]">
@@ -347,31 +366,34 @@ export function SalesPage() {
                     </td>
                     <td className="py-3.5 px-4">
                       {order.status === "COMPLETED" && (
-                        <Badge className="bg-emerald-50 text-emerald-800 border-emerald-200 text-[11px] uppercase tracking-wide">
+                        <Badge variant="success">
                           COMPLETED
                         </Badge>
                       )}
                       {order.status === "PENDING" && (
-                        <Badge className="bg-amber-50 text-[#713105] border-amber-200 text-[11px] uppercase tracking-wide">
+                        <Badge variant="warning">
                           PENDING
                         </Badge>
                       )}
                       {order.status === "CANCELLED" && (
-                        <Badge className="bg-red-50 text-red-700 border-red-200 text-[11px] uppercase tracking-wide">
+                        <Badge variant="destructive">
                           CANCELLED
                         </Badge>
                       )}
                     </td>
                     <td className="py-3.5 px-4 text-right">
-                      <select
-                        value={order.status}
-                        onChange={(e) => handleStatusChange(order.id, e.target.value as any)}
-                        className="bg-[#fff7e8] border border-[#e8decf] text-[11px] text-[#4f351c] rounded-lg p-1.5 outline-none font-semibold cursor-pointer"
-                      >
-                        <option value="PENDING">Mark Pending</option>
-                        <option value="COMPLETED">Mark Completed</option>
-                        <option value="CANCELLED">Mark Cancelled</option>
-                      </select>
+                      <div className="w-38 ml-auto">
+                        <CustomSelect
+                          value={order.status}
+                          onChange={(val) => handleStatusChange(order.id, val as any)}
+                          options={[
+                            { value: "PENDING", label: "Mark Pending" },
+                            { value: "COMPLETED", label: "Mark Completed" },
+                            { value: "CANCELLED", label: "Mark Cancelled" },
+                          ]}
+                          className="py-1 px-2.5 text-[11px]"
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -381,10 +403,13 @@ export function SalesPage() {
         </CardContent>
       </Card>
 
+      {/* Toast Notification */}
+      <ToastNotification toast={toast} onClose={() => setToast(null)} />
+
       {/* Create Order Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <Card className="w-full max-w-md bg-white border-[#e8decf] shadow-xl rounded-2xl overflow-hidden animate-in fade-in zoom-in duration-150">
+          <Card className="w-full max-w-md bg-white border-[#e8decf] shadow-2xl rounded-2xl animate-in fade-in zoom-in duration-150 relative">
             <CardHeader className="bg-[#fff7e8] border-b border-[#e8decf] p-4 flex flex-row items-center justify-between">
               <CardTitle className="text-sm font-bold text-[#341100] flex items-center gap-2">
                 <ShoppingCart className="w-4 h-4 text-[#713105]" />
@@ -651,9 +676,16 @@ export function SalesPage() {
                 <Button
                   type="submit"
                   disabled={submitting}
-                  className="bg-[#713105] text-[#fff7e8] hover:bg-[#4f351c] text-xs font-semibold rounded-xl cursor-pointer"
+                  className="bg-[#713105] text-[#fff7e8] hover:bg-[#341100] text-xs font-semibold rounded-xl cursor-pointer gap-2 disabled:opacity-70"
                 >
-                  {submitting ? "Creating..." : "Create Client Order"}
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-[#fff7e8]" />
+                      Creating Client Order...
+                    </>
+                  ) : (
+                    "Create Client Order"
+                  )}
                 </Button>
               </div>
             </form>

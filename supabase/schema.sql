@@ -126,3 +126,30 @@ CREATE POLICY "Allow public read access on profiles" ON public.profiles FOR SELE
 
 DROP POLICY IF EXISTS "Allow public insert/update on profiles" ON public.profiles;
 CREATE POLICY "Allow public insert/update on profiles" ON public.profiles FOR ALL USING (true);
+
+-- ========================================================
+-- 8. HIGH-PERFORMANCE DATABASE INDEXES (B-TREE)
+-- ========================================================
+
+-- Products: Quick filter for low stock alerts and category browsing
+CREATE INDEX IF NOT EXISTS idx_products_stock_reorder ON public.products(stock_count, reorder_level);
+CREATE INDEX IF NOT EXISTS idx_products_category ON public.products(category);
+CREATE INDEX IF NOT EXISTS idx_products_created ON public.products(created_at DESC);
+
+-- Orders: Fast sorting by date, status filtering for pending badges
+CREATE INDEX IF NOT EXISTS idx_orders_status_created ON public.orders(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_orders_created ON public.orders(created_at DESC);
+
+-- Order Items: Foreign key acceleration for order details and joins
+CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON public.order_items(order_id);
+CREATE INDEX IF NOT EXISTS idx_order_items_product_id ON public.order_items(product_id);
+
+-- Stock Logs: Fast chronological audit trail queries
+CREATE INDEX IF NOT EXISTS idx_stock_logs_created ON public.stock_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_stock_logs_product_id ON public.stock_logs(product_id);
+
+-- Invoices: Fast retrieval by status and due date
+CREATE INDEX IF NOT EXISTS idx_invoices_status_created ON public.invoices(status, created_at DESC);
+
+-- Profiles: Fast role lookup and staff count
+CREATE INDEX IF NOT EXISTS idx_profiles_role ON public.profiles(role);

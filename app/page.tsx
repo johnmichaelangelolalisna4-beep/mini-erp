@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShieldCheck, ShoppingBag, Package, ArrowRight, Lock, Mail, Store, CheckCircle, Sparkles, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { ShieldCheck, ShoppingBag, Package, ArrowRight, Lock, Mail, Store, CheckCircle, Sparkles, Eye, EyeOff, AlertCircle, Loader2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -198,13 +198,14 @@ export default function LandingLoginPage() {
                     <Input
                       type="email"
                       required
+                      disabled={loading}
                       placeholder="e.g. admin@minierp.com"
                       value={email}
                       onChange={(e) => {
                         setEmail(e.target.value);
                         if (errorMessage) setErrorMessage(null);
                       }}
-                      className="pl-9 bg-[#fff7e8] border-[#e8decf] text-xs text-[#341100] rounded-xl focus:bg-white"
+                      className="pl-9 bg-[#fff7e8] border-[#e8decf] text-xs text-[#341100] rounded-xl focus:bg-white disabled:opacity-60"
                     />
                   </div>
                 </div>
@@ -219,18 +220,20 @@ export default function LandingLoginPage() {
                     <Input
                       type={showPassword ? "text" : "password"}
                       required
+                      disabled={loading}
                       placeholder="Enter your password"
                       value={password}
                       onChange={(e) => {
                         setPassword(e.target.value);
                         if (errorMessage) setErrorMessage(null);
                       }}
-                      className="pl-9 pr-10 bg-[#fff7e8] border-[#e8decf] text-xs text-[#341100] rounded-xl focus:bg-white"
+                      className="pl-9 pr-10 bg-[#fff7e8] border-[#e8decf] text-xs text-[#341100] rounded-xl focus:bg-white disabled:opacity-60"
                     />
                     <button
                       type="button"
+                      disabled={loading}
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7f5e35] hover:text-[#341100] transition-colors focus:outline-none cursor-pointer"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7f5e35] hover:text-[#341100] transition-colors focus:outline-none cursor-pointer disabled:opacity-50"
                       title={showPassword ? "Hide password" : "Show password"}
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -242,10 +245,19 @@ export default function LandingLoginPage() {
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-[#713105] text-[#fff7e8] hover:bg-[#4f351c] text-xs font-semibold py-2.5 rounded-xl gap-2 shadow-xs transition-all mt-2 cursor-pointer disabled:opacity-60"
+                  className="w-full bg-[#713105] text-[#fff7e8] hover:bg-[#341100] text-xs font-semibold py-2.5 rounded-xl gap-2 shadow-xs transition-all mt-2 cursor-pointer disabled:opacity-75"
                 >
-                  {loading ? "Authenticating with Supabase..." : "Sign In to Portal"}
-                  <ArrowRight className="w-4 h-4" />
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-[#fff7e8]" />
+                      Authenticating with Supabase...
+                    </>
+                  ) : (
+                    <>
+                      Sign In to Portal
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
                 </Button>
               </form>
             </CardContent>

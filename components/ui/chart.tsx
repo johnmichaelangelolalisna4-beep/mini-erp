@@ -46,7 +46,7 @@ const ChartContainer = React.forwardRef<
         ref={ref}
         data-chart={chartId}
         className={cn(
-          "flex aspect-video justify-center text-xs [&_.recharts-cartesian-axis-tick_text]:fill-stone-500 [&_.recharts-cartesian-grid_line]:stroke-stone-200/80 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-stone-300 [&_.recharts-dot[aria-selected=true]]:stroke-stone-900",
+          "flex aspect-video justify-center text-xs [&_.recharts-cartesian-axis-tick_text]:fill-[#7f5e35] [&_.recharts-cartesian-grid_line]:stroke-[#e8decf] [&_.recharts-curve.recharts-tooltip-cursor]:stroke-[#cfab71] [&_.recharts-dot[aria-selected=true]]:stroke-[#713105]",
           className
         )}
         {...props}
@@ -172,7 +172,7 @@ const ChartTooltipContent = React.forwardRef<
       <div
         ref={ref}
         className={cn(
-          "grid min-w-[8rem] items-start gap-1.5 rounded-lg border border-stone-200 bg-white p-2.5 text-xs text-stone-900 shadow-md",
+          "grid min-w-[8rem] items-start gap-1.5 rounded-xl border border-[#e8decf] bg-white p-3 text-xs text-[#341100] shadow-md",
           className
         )}
       >
@@ -187,7 +187,7 @@ const ChartTooltipContent = React.forwardRef<
               <div
                 key={item.dataKey || index}
                 className={cn(
-                  "flex w-full items-center gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5 [&>svg]:text-stone-500",
+                  "flex w-full items-center gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5 [&>svg]:text-[#7f5e35]",
                   indicator === "dot" && "items-center"
                 )}
               >
@@ -202,11 +202,11 @@ const ChartTooltipContent = React.forwardRef<
                       />
                     )}
                     <div className="flex flex-1 justify-between gap-4 leading-none">
-                      <span className="text-stone-500">
+                      <span className="text-[#7f5e35]">
                         {itemConfig?.label || item.name}
                       </span>
                       {item.value !== undefined && (
-                        <span className="font-mono font-medium text-stone-900">
+                        <span className="font-mono font-bold text-[#341100]">
                           {typeof item.value === "number"
                             ? item.value.toLocaleString()
                             : item.value}

@@ -6,6 +6,8 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { CustomSelect } from "@/components/ui/custom-select";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { fetchProducts, Product } from "@/lib/services/admin";
 
 export function SalesInventoryPage() {
@@ -152,20 +154,16 @@ export function SalesInventoryPage() {
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
             {/* Category Filter */}
             {categories.length > 0 && (
-              <div className="flex items-center gap-1.5 bg-[#fff7e8] border border-[#e8decf] rounded-xl px-2.5 py-1 text-xs">
-                <span className="text-[#7f5e35] font-medium">Category:</span>
-                <select
+              <div className="w-48">
+                <CustomSelect
                   value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="bg-transparent text-xs font-semibold text-[#341100] outline-none cursor-pointer"
-                >
-                  <option value="ALL">All Categories</option>
-                  {categories.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => setCategoryFilter(val)}
+                  options={[
+                    { value: "ALL", label: "All Collections" },
+                    ...categories.map((cat) => ({ value: cat, label: cat })),
+                  ]}
+                  className="py-1.5 px-3 text-xs"
+                />
               </div>
             )}
 
@@ -196,11 +194,7 @@ export function SalesInventoryPage() {
             </thead>
             <tbody className="divide-y divide-[#e8decf]/60">
               {loading ? (
-                <tr>
-                  <td colSpan={7} className="py-8 text-center text-xs text-[#7f5e35]">
-                    Loading real-time catalog stock from Supabase...
-                  </td>
-                </tr>
+                <TableSkeleton columns={7} rows={6} />
               ) : filteredProducts.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-8 text-center text-xs text-[#7f5e35]">
@@ -224,15 +218,15 @@ export function SalesInventoryPage() {
                     </td>
                     <td className="py-3.5 px-4">
                       {product.stock_count === 0 ? (
-                        <Badge className="bg-red-50 text-red-700 border-red-200 text-[10px] uppercase font-bold tracking-wider">
+                        <Badge variant="destructive">
                           Out of Stock
                         </Badge>
                       ) : product.stock_count <= product.reorder_level ? (
-                        <Badge className="bg-amber-50 text-[#713105] border-amber-200 text-[10px] uppercase font-bold tracking-wider">
+                        <Badge variant="warning">
                           Low Stock
                         </Badge>
                       ) : (
-                        <Badge className="bg-emerald-50 text-emerald-800 border-emerald-200 text-[10px] uppercase font-bold tracking-wider">
+                        <Badge variant="success">
                           In Stock
                         </Badge>
                       )}

@@ -106,13 +106,6 @@ export const adminNavSections: NavSection[] = [
         icon: FileText,
         description: "Logs every major system action across modules.",
       },
-      {
-        id: "settings",
-        label: "System Settings",
-        href: "/admin/settings",
-        icon: Settings,
-        description: "Store profile, currencies, tax defaults & system status.",
-      },
     ],
   },
 ];

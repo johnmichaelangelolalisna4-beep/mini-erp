@@ -12,11 +12,17 @@ import {
   Trash2,
   RefreshCw,
   Layers,
+  CheckCircle2,
+  Loader2,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { CustomSelect } from "@/components/ui/custom-select";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { ToastNotification, ToastData } from "@/components/ui/toast-notification";
 import {
   fetchProducts,
   createProduct,
@@ -37,6 +43,8 @@ function ProductsCatalogContent() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [toast, setToast] = useState<ToastData | null>(null);
 
   // New Product Form State
   const [newProduct, setNewProduct] = useState<{
@@ -133,10 +141,19 @@ function ProductsCatalogContent() {
         unit_price: "",
         reorder_level: "",
       });
+      setToast({
+        type: "success",
+        title: "Piece Added to Catalog",
+        message: `SKU "${newProduct.sku}" (${newProduct.name}) added to catalog.`,
+      });
       loadData();
     } catch (err) {
       console.error("Error creating product in Supabase:", err);
-      alert("Failed to create product. Ensure the SKU code is unique.");
+      setToast({
+        type: "error",
+        title: "Addition Failed",
+        message: "Failed to create piece. Ensure the SKU code is unique.",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -196,23 +213,47 @@ function ProductsCatalogContent() {
 
       setIsEditModalOpen(false);
       setEditingProduct(null);
+      setToast({
+        type: "success",
+        title: "Product Updated",
+        message: `Changes for "${editingProduct.name}" saved successfully.`,
+      });
       loadData();
     } catch (err) {
       console.error("Error updating product details in Supabase:", err);
-      alert("Failed to update product details.");
+      setToast({
+        type: "error",
+        title: "Save Failed",
+        message: "Failed to update product details in Supabase.",
+      });
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this furniture piece from the catalog?")) return;
+  const handleDelete = (id: string) => {
+    setDeleteConfirmId(id);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirmId) return;
     try {
-      await deleteProduct(id);
+      await deleteProduct(deleteConfirmId);
+      setToast({
+        type: "success",
+        title: "Piece Removed",
+        message: "Furniture SKU permanently removed from catalog.",
+      });
       loadData();
     } catch (err) {
       console.error("Error deleting product:", err);
-      alert("Failed to delete product.");
+      setToast({
+        type: "error",
+        title: "Deletion Failed",
+        message: "Failed to delete product from database.",
+      });
+    } finally {
+      setDeleteConfirmId(null);
     }
   };
 
@@ -332,11 +373,7 @@ function ProductsCatalogContent() {
             </thead>
             <tbody className="divide-y divide-[#e8decf]/60">
               {loading ? (
-                <tr>
-                  <td colSpan={8} className="py-8 text-center text-xs text-[#7f5e35]">
-                    Loading live catalog products from Supabase...
-                  </td>
-                </tr>
+                <TableSkeleton columns={8} rows={6} />
               ) : filteredProducts.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-8 text-center text-xs text-[#7f5e35]">
@@ -360,15 +397,15 @@ function ProductsCatalogContent() {
                     </td>
                     <td className="py-3.5 px-4">
                       {product.stock_count === 0 ? (
-                        <Badge className="bg-red-50 text-red-700 border-red-200 text-[10px] uppercase font-bold tracking-wider">
+                        <Badge variant="destructive">
                           Out of Stock
                         </Badge>
                       ) : product.stock_count <= product.reorder_level ? (
-                        <Badge className="bg-amber-50 text-[#713105] border-amber-200 text-[10px] uppercase font-bold tracking-wider">
+                        <Badge variant="warning">
                           Low Stock
                         </Badge>
                       ) : (
-                        <Badge className="bg-emerald-50 text-emerald-800 border-emerald-200 text-[10px] uppercase font-bold tracking-wider">
+                        <Badge variant="success">
                           In Stock
                         </Badge>
                       )}
@@ -403,10 +440,13 @@ function ProductsCatalogContent() {
         </CardContent>
       </Card>
 
+      {/* Toast Notification */}
+      <ToastNotification toast={toast} onClose={() => setToast(null)} />
+
       {/* Add New SKU Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <Card className="w-full max-w-md bg-white border-[#e8decf] shadow-xl rounded-2xl overflow-hidden animate-in fade-in zoom-in duration-150">
+          <Card className="w-full max-w-md bg-white border-[#e8decf] shadow-2xl rounded-2xl animate-in fade-in zoom-in duration-150 relative">
             <CardHeader className="p-5 bg-[#fff7e8] border-b border-[#e8decf] flex flex-row items-center justify-between">
               <CardTitle className="text-base font-bold text-[#341100] flex items-center gap-2">
                 <Package className="w-4 h-4 text-[#713105]" />
@@ -453,19 +493,20 @@ function ProductsCatalogContent() {
                     <label className="font-semibold text-[#4f351c] block mb-1">
                       Collection / Category *
                     </label>
-                    <select
+                    <CustomSelect
                       value={newProduct.category}
-                      onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
-                      className="w-full bg-[#fff7e8] border border-[#e8decf] text-xs text-[#341100] rounded-xl p-2 outline-none font-medium"
-                    >
-                      <option value="Living Room">Living Room</option>
-                      <option value="Dining & Kitchen">Dining & Kitchen</option>
-                      <option value="Bedroom">Bedroom</option>
-                      <option value="Office & Workspace">Office & Workspace</option>
-                      <option value="Outdoor & Patio">Outdoor & Patio</option>
-                      <option value="Lighting & Decor">Lighting & Decor</option>
-                      <option value="Storage & Cabinets">Storage & Cabinets</option>
-                    </select>
+                      onChange={(val) => setNewProduct({ ...newProduct, category: val })}
+                      options={[
+                        { value: "Living Room", label: "Living Room" },
+                        { value: "Dining & Kitchen", label: "Dining & Kitchen" },
+                        { value: "Bedroom", label: "Bedroom" },
+                        { value: "Office & Workspace", label: "Office & Workspace" },
+                        { value: "Outdoor & Patio", label: "Outdoor & Patio" },
+                        { value: "Lighting & Decor", label: "Lighting & Decor" },
+                        { value: "Storage & Cabinets", label: "Storage & Cabinets" },
+                      ]}
+                      className="w-full text-xs"
+                    />
                   </div>
                 </div>
 
@@ -529,9 +570,16 @@ function ProductsCatalogContent() {
                   <Button
                     type="submit"
                     disabled={submitting}
-                    className="bg-[#713105] text-[#fff7e8] hover:bg-[#4f351c] rounded-xl text-xs font-semibold"
+                    className="bg-[#713105] text-[#fff7e8] hover:bg-[#341100] rounded-xl text-xs font-semibold gap-2 disabled:opacity-70"
                   >
-                    {submitting ? "Adding..." : "Add to Catalog"}
+                    {submitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-[#fff7e8]" />
+                        Adding to Catalog...
+                      </>
+                    ) : (
+                      "Add to Catalog"
+                    )}
                   </Button>
                 </div>
               </CardContent>
@@ -543,7 +591,7 @@ function ProductsCatalogContent() {
       {/* Edit Piece Modal */}
       {isEditModalOpen && editingProduct && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <Card className="w-full max-w-md bg-white border-[#e8decf] shadow-xl rounded-2xl overflow-hidden animate-in fade-in zoom-in duration-150">
+          <Card className="w-full max-w-md bg-white border-[#e8decf] shadow-2xl rounded-2xl animate-in fade-in zoom-in duration-150 relative">
             <CardHeader className="p-5 bg-[#fff7e8] border-b border-[#e8decf] flex flex-row items-center justify-between">
               <CardTitle className="text-base font-bold text-[#341100] flex items-center gap-2">
                 <Edit2 className="w-4 h-4 text-[#713105]" />
@@ -588,19 +636,20 @@ function ProductsCatalogContent() {
                     <label className="font-semibold text-[#4f351c] block mb-1">
                       Collection / Category *
                     </label>
-                    <select
+                    <CustomSelect
                       value={editingProduct.category}
-                      onChange={(e) => setEditingProduct({ ...editingProduct, category: e.target.value })}
-                      className="w-full bg-[#fff7e8] border border-[#e8decf] text-xs text-[#341100] rounded-xl p-2 outline-none font-medium"
-                    >
-                      <option value="Living Room">Living Room</option>
-                      <option value="Dining & Kitchen">Dining & Kitchen</option>
-                      <option value="Bedroom">Bedroom</option>
-                      <option value="Office & Workspace">Office & Workspace</option>
-                      <option value="Outdoor & Patio">Outdoor & Patio</option>
-                      <option value="Lighting & Decor">Lighting & Decor</option>
-                      <option value="Storage & Cabinets">Storage & Cabinets</option>
-                    </select>
+                      onChange={(val) => setEditingProduct({ ...editingProduct, category: val })}
+                      options={[
+                        { value: "Living Room", label: "Living Room" },
+                        { value: "Dining & Kitchen", label: "Dining & Kitchen" },
+                        { value: "Bedroom", label: "Bedroom" },
+                        { value: "Office & Workspace", label: "Office & Workspace" },
+                        { value: "Outdoor & Patio", label: "Outdoor & Patio" },
+                        { value: "Lighting & Decor", label: "Lighting & Decor" },
+                        { value: "Storage & Cabinets", label: "Storage & Cabinets" },
+                      ]}
+                      className="w-full text-xs"
+                    />
                   </div>
                 </div>
 
@@ -661,9 +710,16 @@ function ProductsCatalogContent() {
                   <Button
                     type="submit"
                     disabled={submitting}
-                    className="bg-[#713105] text-[#fff7e8] hover:bg-[#4f351c] rounded-xl text-xs font-semibold"
+                    className="bg-[#713105] text-[#fff7e8] hover:bg-[#341100] rounded-xl text-xs font-semibold gap-2 disabled:opacity-70"
                   >
-                    {submitting ? "Saving..." : "Save Changes"}
+                    {submitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-[#fff7e8]" />
+                        Saving Changes...
+                      </>
+                    ) : (
+                      "Save Changes"
+                    )}
                   </Button>
                 </div>
               </CardContent>
@@ -671,6 +727,16 @@ function ProductsCatalogContent() {
           </Card>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmDialog
+        isOpen={!!deleteConfirmId}
+        onClose={() => setDeleteConfirmId(null)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Catalog SKU"
+        description="Are you sure you want to permanently remove this furniture piece from your catalog? This action cannot be undone."
+        confirmText="Delete Piece"
+      />
     </div>
   );
 }

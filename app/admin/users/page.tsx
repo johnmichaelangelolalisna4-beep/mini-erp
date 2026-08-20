@@ -1,12 +1,16 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { UserPlus, Users, ShieldCheck, ShoppingBag, Package, Search, Filter, RefreshCw, X, Trash2, CheckCircle, Eye, EyeOff } from "lucide-react";
+import { UserPlus, Users, ShieldCheck, ShoppingBag, Package, Search, Filter, RefreshCw, X, Trash2, CheckCircle, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { CustomSelect } from "@/components/ui/custom-select";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { ToastNotification, ToastData } from "@/components/ui/toast-notification";
 import { fetchProfiles, createProfile, updateProfileRole, deleteProfile, Profile } from "@/lib/services/admin";
 
 export function UserManagementPage() {
@@ -15,21 +19,17 @@ export function UserManagementPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toast, setToast] = useState<ToastData | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [deleteConfirmUser, setDeleteConfirmUser] = useState<{ id: string; name: string } | null>(null);
 
   // New Profile Form State
   const [newProfile, setNewProfile] = useState({
     full_name: "",
-    password: "",
     email: "",
+    password: "",
     role: "Sales" as "Admin" | "Sales" | "Inventory",
   });
-
-  const showNotification = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
-  };
 
   const loadData = async () => {
     setLoading(true);
@@ -74,10 +74,18 @@ export function UserManagementPage() {
         password: newProfile.password,
         role: newProfile.role,
       });
-      showNotification(`Registered "${newProfile.full_name}" as ${newProfile.role}!`);
+      setToast({
+        type: "success",
+        title: "Employee Registered",
+        message: `Registered "${newProfile.full_name}" with role ${newProfile.role}.`,
+      });
     } catch (err) {
       console.warn("Supabase insert notice (local state updated dynamically):", err);
-      showNotification(`Added "${newProfile.full_name}" to User Directory!`);
+      setToast({
+        type: "success",
+        title: "Employee Added",
+        message: `Added "${newProfile.full_name}" to User Directory.`,
+      });
     } finally {
       setIsModalOpen(false);
       setNewProfile({
@@ -100,25 +108,48 @@ export function UserManagementPage() {
 
     try {
       await updateProfileRole(id, newRole);
-      showNotification(`Updated role to ${newRole}!`);
+      setToast({
+        type: "success",
+        title: "Role Updated",
+        message: `Assigned role ${newRole} to employee profile.`,
+      });
     } catch (err) {
       console.warn("Role updated dynamically in UI:", err);
-      showNotification(`Role changed to ${newRole}!`);
+      setToast({
+        type: "success",
+        title: "Role Updated",
+        message: `Role changed to ${newRole}.`,
+      });
     }
   };
 
   // 3. DYNAMIC DELETE USER (Optimistic state update + Supabase deletion)
-  const handleDeleteUser = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to remove employee ${name}?`)) return;
+  const handleDeleteUser = (id: string, name: string) => {
+    setDeleteConfirmUser({ id, name });
+  };
+
+  const handleConfirmDeleteUser = async () => {
+    if (!deleteConfirmUser) return;
+    const { id, name } = deleteConfirmUser;
 
     setUsers((prev) => prev.filter((user) => user.id !== id));
 
     try {
       await deleteProfile(id);
-      showNotification(`Removed employee ${name}!`);
+      setToast({
+        type: "success",
+        title: "Employee Removed",
+        message: `Employee "${name}" removed from platform.`,
+      });
     } catch (err) {
       console.warn("Employee removed dynamically from UI:", err);
-      showNotification(`Employee ${name} removed!`);
+      setToast({
+        type: "success",
+        title: "Employee Removed",
+        message: `Employee "${name}" removed from platform.`,
+      });
+    } finally {
+      setDeleteConfirmUser(null);
     }
   };
 
@@ -147,13 +178,6 @@ export function UserManagementPage() {
 
   return (
     <div className="space-y-6">
-      {/* Toast Notification Banner */}
-      {toastMessage && (
-        <div className="fixed top-4 right-4 z-50 bg-[#713105] text-[#fff7e8] px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 text-xs font-semibold animate-in slide-in-from-top-2 duration-200">
-          <CheckCircle className="w-4 h-4 text-[#cfab71]" />
-          <span>{toastMessage}</span>
-        </div>
-      )}
 
       {/* Header Banner */}
       <Card className="border-[#e8decf] shadow-xs rounded-2xl bg-white p-6">
@@ -270,11 +294,7 @@ export function UserManagementPage() {
             </thead>
             <tbody className="divide-y divide-[#e8decf]/60">
               {loading ? (
-                <tr>
-                  <td colSpan={5} className="py-8 text-center text-xs text-[#7f5e35]">
-                    Loading staff directory from Supabase...
-                  </td>
-                </tr>
+                <TableSkeleton columns={5} rows={5} />
               ) : filteredUsers.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="py-8 text-center text-xs text-[#7f5e35]">
@@ -316,26 +336,29 @@ export function UserManagementPage() {
                     </td>
                     <td className="py-3.5 px-4 text-[#7f5e35] font-medium">{user.email}</td>
                     <td className="py-3.5 px-4">
-                      <Badge className="bg-emerald-50 text-emerald-800 border-emerald-200 text-[11px] uppercase tracking-wide">
+                      <Badge variant="success">
                         Active
                       </Badge>
                     </td>
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <select
-                          value={user.role}
-                          onChange={(e) => handleRoleChange(user.id, e.target.value as any)}
-                          className="bg-[#fff7e8] border border-[#e8decf] text-[11px] text-[#4f351c] rounded-lg p-1.5 outline-none font-semibold cursor-pointer hover:border-[#cfab71]"
-                        >
-                          <option value="Admin">Role: Admin</option>
-                          <option value="Sales">Role: Sales</option>
-                          <option value="Inventory">Role: Inventory</option>
-                        </select>
+                        <div className="w-36">
+                          <CustomSelect
+                            value={user.role}
+                            onChange={(val) => handleRoleChange(user.id, val as any)}
+                            options={[
+                              { value: "Admin", label: "Role: Admin" },
+                              { value: "Sales", label: "Role: Sales" },
+                              { value: "Inventory", label: "Role: Inventory" },
+                            ]}
+                            className="py-1 px-2.5 text-[11px]"
+                          />
+                        </div>
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => handleDeleteUser(user.id, user.full_name)}
-                          className="h-8 w-8 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg"
+                          className="h-8 w-8 text-red-700 hover:text-red-800 hover:bg-red-50 rounded-xl cursor-pointer"
                           title="Delete Employee Account"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -350,10 +373,10 @@ export function UserManagementPage() {
         </CardContent>
       </Card>
 
-      {/* Register Employee Modal */}
+      {/* Add New User Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <Card className="w-full max-w-md bg-white border-[#e8decf] shadow-xl rounded-2xl overflow-hidden animate-in fade-in zoom-in duration-150">
+          <Card className="w-full max-w-md bg-white border-[#e8decf] shadow-2xl rounded-2xl animate-in fade-in zoom-in duration-150 relative">
             <CardHeader className="bg-[#fff7e8] border-b border-[#e8decf] p-4 flex flex-row items-center justify-between">
               <CardTitle className="text-sm font-bold text-[#341100]">Register New Employee</CardTitle>
               <Button
@@ -421,15 +444,16 @@ export function UserManagementPage() {
                 <label className="text-[11px] font-semibold text-[#4f351c] uppercase block mb-1">
                   Assigned ERP Portal Role *
                 </label>
-                <select
+                <CustomSelect
                   value={newProfile.role}
-                  onChange={(e) => setNewProfile({ ...newProfile, role: e.target.value as any })}
-                  className="w-full bg-[#fff7e8] border border-[#e8decf] text-xs text-[#341100] rounded-xl p-2.5 outline-none font-medium cursor-pointer"
-                >
-                  <option value="Admin">Administrator (Full Access)</option>
-                  <option value="Sales">Sales Representative (Orders & Invoices)</option>
-                  <option value="Inventory">Inventory Manager (Stock & Catalog)</option>
-                </select>
+                  onChange={(val) => setNewProfile({ ...newProfile, role: val as any })}
+                  options={[
+                    { value: "Admin", label: "Administrator (Full Access)" },
+                    { value: "Sales", label: "Sales Representative (Orders & Invoices)" },
+                    { value: "Inventory", label: "Inventory Manager (Stock & Catalog)" },
+                  ]}
+                  className="w-full text-xs"
+                />
               </div>
 
               <div className="pt-2 flex items-center justify-end gap-2">
@@ -444,15 +468,35 @@ export function UserManagementPage() {
                 <Button
                   type="submit"
                   disabled={submitting}
-                  className="bg-[#713105] text-[#fff7e8] hover:bg-[#4f351c] text-xs font-semibold rounded-xl"
+                  className="bg-[#713105] text-[#fff7e8] hover:bg-[#341100] text-xs font-semibold rounded-xl gap-2 disabled:opacity-70"
                 >
-                  {submitting ? "Registering..." : "Register Employee"}
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-[#fff7e8]" />
+                      Registering Employee...
+                    </>
+                  ) : (
+                    "Register Employee"
+                  )}
                 </Button>
               </div>
             </form>
           </Card>
         </div>
       )}
+
+      {/* Toast Notification */}
+      <ToastNotification toast={toast} onClose={() => setToast(null)} />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmDialog
+        isOpen={!!deleteConfirmUser}
+        onClose={() => setDeleteConfirmUser(null)}
+        onConfirm={handleConfirmDeleteUser}
+        title="Remove Employee Profile"
+        description={`Are you sure you want to revoke ERP portal access and remove employee "${deleteConfirmUser?.name}"?`}
+        confirmText="Remove Account"
+      />
     </div>
   );
 }

@@ -1,11 +1,15 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Search, Filter, Plus, Package, AlertTriangle, Layers, Trash2, Edit2, X, RefreshCw, CheckCircle2 } from "lucide-react";
+import { Search, Filter, Plus, Package, AlertTriangle, Layers, Trash2, Edit2, X, RefreshCw, CheckCircle2, Loader2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { CustomSelect } from "@/components/ui/custom-select";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { ToastNotification, ToastData } from "@/components/ui/toast-notification";
 import { fetchProducts, createProduct, updateProduct, deleteProduct, createStockLog, Product } from "@/lib/services/admin";
 
 export function InventoryPage() {
@@ -15,6 +19,8 @@ export function InventoryPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [toast, setToast] = useState<ToastData | null>(null);
 
   // New product form state with empty string allowed to prevent sticky 0
   const [newProduct, setNewProduct] = useState<{
@@ -104,10 +110,19 @@ export function InventoryPage() {
         unit_price: "",
         reorder_level: "",
       });
+      setToast({
+        type: "success",
+        title: "Furniture Piece Added",
+        message: `SKU "${newProduct.sku}" (${newProduct.name}) added to catalog.`,
+      });
       loadData();
     } catch (err) {
       console.error("Error creating product:", err);
-      alert("Failed to create product. Make sure SKU is unique.");
+      setToast({
+        type: "error",
+        title: "Catalog Insertion Failed",
+        message: "Failed to add furniture piece. Please ensure SKU is unique and try again.",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -166,22 +181,47 @@ export function InventoryPage() {
 
       setIsEditModalOpen(false);
       setEditingProduct(null);
+      setToast({
+        type: "success",
+        title: "Product Updated",
+        message: `Changes for "${editingProduct.name}" saved successfully.`,
+      });
       loadData();
     } catch (err) {
       console.error("Error updating product:", err);
-      alert("Failed to update product details.");
+      setToast({
+        type: "error",
+        title: "Update Failed",
+        message: "Failed to update product details. Please try again.",
+      });
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this furniture SKU?")) return;
+  const handleDelete = (id: string) => {
+    setDeleteConfirmId(id);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirmId) return;
     try {
-      await deleteProduct(id);
+      await deleteProduct(deleteConfirmId);
+      setToast({
+        type: "success",
+        title: "Furniture SKU Deleted",
+        message: "Piece permanently removed from inventory catalog.",
+      });
       loadData();
     } catch (err) {
       console.error("Error deleting product:", err);
+      setToast({
+        type: "error",
+        title: "Deletion Failed",
+        message: "Failed to delete furniture SKU from database.",
+      });
+    } finally {
+      setDeleteConfirmId(null);
     }
   };
 
@@ -314,11 +354,7 @@ export function InventoryPage() {
             </thead>
             <tbody className="divide-y divide-[#e8decf]/60">
               {loading ? (
-                <tr>
-                  <td colSpan={7} className="py-8 text-center text-xs text-[#7f5e35]">
-                    Loading furniture catalog from Supabase...
-                  </td>
-                </tr>
+                <TableSkeleton columns={7} rows={6} />
               ) : filteredProducts.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-8 text-center text-xs text-[#7f5e35]">
@@ -343,17 +379,17 @@ export function InventoryPage() {
                     </td>
                     <td className="py-3.5 px-4 whitespace-nowrap">
                       {product.stock_count > product.reorder_level && (
-                        <Badge className="bg-emerald-50 text-emerald-800 border-emerald-200 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 whitespace-nowrap">
+                        <Badge variant="success">
                           IN STOCK
                         </Badge>
                       )}
                       {product.stock_count > 0 && product.stock_count <= product.reorder_level && (
-                        <Badge className="bg-amber-50 text-[#713105] border-amber-200 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 whitespace-nowrap">
+                        <Badge variant="warning">
                           LOW STOCK
                         </Badge>
                       )}
                       {product.stock_count === 0 && (
-                        <Badge className="bg-red-50 text-red-700 border-red-200 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 whitespace-nowrap">
+                        <Badge variant="destructive">
                           OUT OF STOCK
                         </Badge>
                       )}
@@ -388,10 +424,13 @@ export function InventoryPage() {
         </CardContent>
       </Card>
 
+      {/* Toast Notification */}
+      <ToastNotification toast={toast} onClose={() => setToast(null)} />
+
       {/* Add New Product Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <Card className="w-full max-w-md bg-white border-[#e8decf] shadow-xl rounded-2xl overflow-hidden animate-in fade-in zoom-in duration-150">
+          <Card className="w-full max-w-md bg-white border-[#e8decf] shadow-2xl rounded-2xl animate-in fade-in zoom-in duration-150 relative">
             <CardHeader className="bg-[#fff7e8] border-b border-[#e8decf] p-4 flex flex-row items-center justify-between">
               <CardTitle className="text-sm font-bold text-[#341100]">Add New Furniture Piece</CardTitle>
               <Button
@@ -435,19 +474,20 @@ export function InventoryPage() {
                   <label className="text-[11px] font-semibold text-[#4f351c] uppercase block mb-1">
                     Category / Collection
                   </label>
-                  <select
+                  <CustomSelect
                     value={newProduct.category}
-                    onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
-                    className="w-full bg-[#fff7e8] border border-[#e8decf] text-xs text-[#341100] rounded-xl p-2.5 outline-none font-medium cursor-pointer"
-                  >
-                    <option value="Living Room">Living Room</option>
-                    <option value="Dining & Kitchen">Dining & Kitchen</option>
-                    <option value="Bedroom">Bedroom</option>
-                    <option value="Office & Workspace">Office & Workspace</option>
-                    <option value="Outdoor & Patio">Outdoor & Patio</option>
-                    <option value="Lighting & Decor">Lighting & Decor</option>
-                    <option value="Storage & Cabinets">Storage & Cabinets</option>
-                  </select>
+                    onChange={(val) => setNewProduct({ ...newProduct, category: val })}
+                    options={[
+                      { value: "Living Room", label: "Living Room" },
+                      { value: "Dining & Kitchen", label: "Dining & Kitchen" },
+                      { value: "Bedroom", label: "Bedroom" },
+                      { value: "Office & Workspace", label: "Office & Workspace" },
+                      { value: "Outdoor & Patio", label: "Outdoor & Patio" },
+                      { value: "Lighting & Decor", label: "Lighting & Decor" },
+                      { value: "Storage & Cabinets", label: "Storage & Cabinets" },
+                    ]}
+                    className="w-full text-xs"
+                  />
                 </div>
 
                 <div>
@@ -511,9 +551,16 @@ export function InventoryPage() {
                 <Button
                   type="submit"
                   disabled={submitting}
-                  className="bg-[#713105] text-[#fff7e8] hover:bg-[#4f351c] text-xs font-semibold rounded-xl cursor-pointer"
+                  className="bg-[#713105] text-[#fff7e8] hover:bg-[#341100] text-xs font-semibold rounded-xl cursor-pointer gap-2 disabled:opacity-70"
                 >
-                  {submitting ? "Saving..." : "Save Furniture Piece"}
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-[#fff7e8]" />
+                      Saving Furniture Piece...
+                    </>
+                  ) : (
+                    "Save Furniture Piece"
+                  )}
                 </Button>
               </div>
             </form>
@@ -524,7 +571,7 @@ export function InventoryPage() {
       {/* Edit Product Modal */}
       {isEditModalOpen && editingProduct && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <Card className="w-full max-w-md bg-white border-[#e8decf] shadow-xl rounded-2xl overflow-hidden animate-in fade-in zoom-in duration-150">
+          <Card className="w-full max-w-md bg-white border-[#e8decf] shadow-2xl rounded-2xl animate-in fade-in zoom-in duration-150 relative">
             <CardHeader className="bg-[#fff7e8] border-b border-[#e8decf] p-4 flex flex-row items-center justify-between">
               <CardTitle className="text-sm font-bold text-[#341100] flex items-center gap-2">
                 <Edit2 className="w-4 h-4 text-[#713105]" />
@@ -574,19 +621,20 @@ export function InventoryPage() {
                   <label className="text-[11px] font-semibold text-[#4f351c] uppercase block mb-1">
                     Category / Collection
                   </label>
-                  <select
+                  <CustomSelect
                     value={editingProduct.category}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, category: e.target.value })}
-                    className="w-full bg-[#fff7e8] border border-[#e8decf] text-xs text-[#341100] rounded-xl p-2.5 outline-none font-medium cursor-pointer"
-                  >
-                    <option value="Living Room">Living Room</option>
-                    <option value="Dining & Kitchen">Dining & Kitchen</option>
-                    <option value="Bedroom">Bedroom</option>
-                    <option value="Office & Workspace">Office & Workspace</option>
-                    <option value="Outdoor & Patio">Outdoor & Patio</option>
-                    <option value="Lighting & Decor">Lighting & Decor</option>
-                    <option value="Storage & Cabinets">Storage & Cabinets</option>
-                  </select>
+                    onChange={(val) => setEditingProduct({ ...editingProduct, category: val })}
+                    options={[
+                      { value: "Living Room", label: "Living Room" },
+                      { value: "Dining & Kitchen", label: "Dining & Kitchen" },
+                      { value: "Bedroom", label: "Bedroom" },
+                      { value: "Office & Workspace", label: "Office & Workspace" },
+                      { value: "Outdoor & Patio", label: "Outdoor & Patio" },
+                      { value: "Lighting & Decor", label: "Lighting & Decor" },
+                      { value: "Storage & Cabinets", label: "Storage & Cabinets" },
+                    ]}
+                    className="w-full text-xs"
+                  />
                 </div>
 
                 <div>
@@ -653,16 +701,35 @@ export function InventoryPage() {
                 <Button
                   type="submit"
                   disabled={submitting}
-                  className="bg-[#713105] text-[#fff7e8] hover:bg-[#4f351c] text-xs font-semibold rounded-xl cursor-pointer gap-1.5"
+                  className="bg-[#713105] text-[#fff7e8] hover:bg-[#341100] text-xs font-semibold rounded-xl cursor-pointer gap-2 disabled:opacity-70"
                 >
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  {submitting ? "Saving..." : "Update Furniture Piece"}
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-[#fff7e8]" />
+                      Updating Furniture Piece...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      Update Furniture Piece
+                    </>
+                  )}
                 </Button>
               </div>
             </form>
           </Card>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmDialog
+        isOpen={!!deleteConfirmId}
+        onClose={() => setDeleteConfirmId(null)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Furniture SKU"
+        description="Are you sure you want to permanently remove this furniture SKU from your inventory catalog? This action cannot be undone."
+        confirmText="Delete Piece"
+      />
     </div>
   );
 }

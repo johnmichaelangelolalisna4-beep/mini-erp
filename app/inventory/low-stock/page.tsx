@@ -12,11 +12,15 @@ import {
   CheckCircle2,
   AlertCircle,
   X,
+  FileDown,
+  Loader2,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { ToastNotification, ToastData } from "@/components/ui/toast-notification";
 import {
   fetchProducts,
   updateProduct,
@@ -29,9 +33,9 @@ export function LowStockRestockPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [restockingProduct, setRestockingProduct] = useState<Product | null>(null);
-  const [restockQty, setRestockQty] = useState<string | number>(20);
+  const [restockQty, setRestockQty] = useState<number | string>(10);
   const [submitting, setSubmitting] = useState(false);
-  const [notice, setNotice] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [toast, setToast] = useState<ToastData | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -75,7 +79,11 @@ export function LowStockRestockPage() {
 
     const qtyToAdd = Number(restockQty);
     if (isNaN(qtyToAdd) || qtyToAdd <= 0) {
-      alert("Please enter a valid positive restock quantity.");
+      setToast({
+        type: "error",
+        title: "Invalid Quantity",
+        message: "Please enter a valid positive restock quantity.",
+      });
       return;
     }
 
@@ -96,21 +104,20 @@ export function LowStockRestockPage() {
         reason: `Supplier warehouse replenishment: +${qtyToAdd} units for ${restockingProduct.name}`,
       });
 
-      setNotice({
-        type: "success",
-        text: `Successfully restocked +${qtyToAdd} units of "${restockingProduct.name}".`,
-      });
-      setTimeout(() => setNotice(null), 5000);
-
       setRestockingProduct(null);
+      setToast({
+        type: "success",
+        title: "Restock Recorded",
+        message: `Added +${qtyToAdd} units of "${restockingProduct.name}" to inventory.`,
+      });
       loadData();
     } catch (err) {
-      console.error("Error executing restock in Supabase:", err);
-      setNotice({
+      console.error("Error restocking product in Supabase:", err);
+      setToast({
         type: "error",
-        text: "Failed to update restock in Supabase. Please try again.",
+        title: "Restock Failed",
+        message: "Failed to record restock intake in Supabase.",
       });
-      setTimeout(() => setNotice(null), 5000);
     } finally {
       setSubmitting(false);
     }
@@ -118,32 +125,6 @@ export function LowStockRestockPage() {
 
   return (
     <div className="space-y-6">
-      {/* Toast Notification */}
-      {notice && (
-        <div
-          className={`flex items-center justify-between p-4 rounded-xl text-xs font-medium border transition-all duration-300 animate-in fade-in-50 slide-in-from-top-2 ${
-            notice.type === "success"
-              ? "bg-emerald-50 text-emerald-900 border-emerald-200 shadow-xs"
-              : "bg-red-50 text-red-900 border-red-200 shadow-xs"
-          }`}
-        >
-          <div className="flex items-center gap-2.5">
-            {notice.type === "success" ? (
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-            ) : (
-              <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
-            )}
-            <p className="font-semibold">{notice.text}</p>
-          </div>
-          <button
-            onClick={() => setNotice(null)}
-            className="text-emerald-700 hover:text-emerald-900 font-bold px-2 py-1 cursor-pointer"
-          >
-            ✕
-          </button>
-        </div>
-      )}
-
       {/* Header Banner */}
       <Card className="border-[#e8decf] shadow-xs rounded-2xl bg-white p-6">
         <CardContent className="p-0 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -246,11 +227,7 @@ export function LowStockRestockPage() {
             </thead>
             <tbody className="divide-y divide-[#e8decf]/60">
               {loading ? (
-                <tr>
-                  <td colSpan={8} className="py-8 text-center text-xs text-[#7f5e35]">
-                    Scanning database for low stock items...
-                  </td>
-                </tr>
+                <TableSkeleton columns={8} rows={5} />
               ) : filteredItems.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-8 text-center text-xs text-emerald-800 font-medium">
@@ -274,11 +251,11 @@ export function LowStockRestockPage() {
                     </td>
                     <td className="py-3.5 px-4 whitespace-nowrap">
                       {item.stock_count === 0 ? (
-                        <Badge className="bg-red-50 text-red-700 border-red-200 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 whitespace-nowrap">
+                        <Badge variant="destructive">
                           Out of Stock
                         </Badge>
                       ) : (
-                        <Badge className="bg-amber-50 text-[#713105] border-amber-200 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 whitespace-nowrap">
+                        <Badge variant="warning">
                           Low Stock
                         </Badge>
                       )}
@@ -300,10 +277,13 @@ export function LowStockRestockPage() {
         </CardContent>
       </Card>
 
+      {/* Toast Notification */}
+      <ToastNotification toast={toast} onClose={() => setToast(null)} />
+
       {/* Restock SKU Modal */}
       {restockingProduct && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <Card className="w-full max-w-md bg-white border-[#e8decf] shadow-xl rounded-2xl overflow-hidden animate-in fade-in zoom-in duration-150">
+          <Card className="w-full max-w-md bg-white border-[#e8decf] shadow-2xl rounded-2xl animate-in fade-in zoom-in duration-150 relative">
             <CardHeader className="p-5 bg-[#fff7e8] border-b border-[#e8decf] flex flex-row items-center justify-between">
               <CardTitle className="text-base font-bold text-[#341100] flex items-center gap-2">
                 <Truck className="w-4 h-4 text-[#713105]" />
@@ -365,9 +345,16 @@ export function LowStockRestockPage() {
                   <Button
                     type="submit"
                     disabled={submitting}
-                    className="bg-[#713105] text-[#fff7e8] hover:bg-[#4f351c] rounded-xl text-xs font-semibold"
+                    className="bg-[#713105] text-[#fff7e8] hover:bg-[#341100] rounded-xl text-xs font-semibold gap-2 disabled:opacity-70"
                   >
-                    {submitting ? "Processing..." : "Confirm Restock Intake"}
+                    {submitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-[#fff7e8]" />
+                        Recording Restock Intake...
+                      </>
+                    ) : (
+                      "Confirm Restock Intake"
+                    )}
                   </Button>
                 </div>
               </CardContent>

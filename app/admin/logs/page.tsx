@@ -17,11 +17,14 @@ import {
   UserCheck,
   FileDown,
   Clock,
+  Loader2,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { ToastNotification, ToastData } from "@/components/ui/toast-notification";
 import { fetchUnifiedAuditLogs, UnifiedAuditLog } from "@/lib/services/admin";
 import { exportAuditLogsReport } from "@/lib/services/excel-export";
 
@@ -37,11 +40,7 @@ export function AuditLogsPage() {
   const [exporting, setExporting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeModuleFilter, setActiveModuleFilter] = useState<string>("ALL");
-  const [exportNotice, setExportNotice] = useState<{
-    type: "success" | "error";
-    text: string;
-    fileName?: string;
-  } | null>(null);
+  const [toast, setToast] = useState<ToastData | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -62,28 +61,22 @@ export function AuditLogsPage() {
 
   const handleExportLogs = async () => {
     setExporting(true);
-    setExportNotice(null);
     try {
       const result = await exportAuditLogsReport({
         fileNamePrefix: "Mini_ERP_Audit_and_System_Logs",
       });
-      setExportNotice({
+      setToast({
         type: "success",
-        text: "Audit & Operational Logs Excel report downloaded successfully!",
-        fileName: result.fileName,
+        title: "Audit Logs Exported",
+        message: `Excel spreadsheet "${result.fileName}" downloaded successfully.`,
       });
-      setTimeout(() => {
-        setExportNotice(null);
-      }, 6000);
     } catch (err) {
-      console.error("Error exporting audit logs:", err);
-      setExportNotice({
+      console.error("Error exporting audit logs to Excel:", err);
+      setToast({
         type: "error",
-        text: "Failed to generate Audit Logs report. Please try again.",
+        title: "Export Failed",
+        message: "Failed to generate audit logs report. Please check database connection.",
       });
-      setTimeout(() => {
-        setExportNotice(null);
-      }, 6000);
     } finally {
       setExporting(false);
     }
@@ -157,38 +150,8 @@ export function AuditLogsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Export Notification Toast */}
-      {exportNotice && (
-        <div
-          className={`flex items-center justify-between p-4 rounded-xl text-xs font-medium border transition-all duration-300 animate-in fade-in-50 slide-in-from-top-2 ${
-            exportNotice.type === "success"
-              ? "bg-emerald-50 text-emerald-900 border-emerald-200 shadow-xs"
-              : "bg-red-50 text-red-900 border-red-200 shadow-xs"
-          }`}
-        >
-          <div className="flex items-center gap-2.5">
-            {exportNotice.type === "success" ? (
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-            ) : (
-              <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
-            )}
-            <div>
-              <p className="font-semibold">{exportNotice.text}</p>
-              {exportNotice.fileName && (
-                <p className="text-[11px] text-emerald-700 mt-0.5 font-mono">
-                  File: {exportNotice.fileName}
-                </p>
-              )}
-            </div>
-          </div>
-          <button
-            onClick={() => setExportNotice(null)}
-            className="text-emerald-700 hover:text-emerald-900 font-bold px-2 py-1 cursor-pointer"
-          >
-            ✕
-          </button>
-        </div>
-      )}
+      {/* Toast Notification */}
+      <ToastNotification toast={toast} onClose={() => setToast(null)} />
 
       {/* Header Banner */}
       <Card className="border-[#e8decf] shadow-xs rounded-2xl bg-white p-6">
@@ -372,11 +335,20 @@ export function AuditLogsPage() {
               variant="outline"
               onClick={handleExportLogs}
               disabled={exporting}
-              className="border-[#e8decf] text-[#4f351c] hover:bg-[#fff7e8] gap-1.5 text-xs rounded-xl cursor-pointer"
+              className="border-[#e8decf] text-[#4f351c] hover:bg-[#fff7e8] gap-1.5 text-xs rounded-xl cursor-pointer disabled:opacity-60"
               title="Download Excel spreadsheet"
             >
-              <FileDown className="w-3.5 h-3.5 text-[#713105]" />
-              Excel
+              {exporting ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[#713105]" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <FileDown className="w-3.5 h-3.5 text-[#713105]" />
+                  Excel
+                </>
+              )}
             </Button>
           </div>
         </CardHeader>
@@ -396,11 +368,7 @@ export function AuditLogsPage() {
             </thead>
             <tbody className="divide-y divide-[#e8decf]/60">
               {loading ? (
-                <tr>
-                  <td colSpan={7} className="py-8 text-center text-xs text-[#7f5e35]">
-                    Aggregating real-time operational audit logs from Supabase...
-                  </td>
-                </tr>
+                <TableSkeleton columns={7} rows={7} />
               ) : filteredLogs.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-8 text-center text-xs text-[#7f5e35]">

@@ -4,6 +4,7 @@ import React from "react";
 import { TrendingUp, Package, AlertTriangle, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface KpiDataProps {
   totalSales?: number;
@@ -28,26 +29,26 @@ export function KpiCardsSection({
   const kpis = [
     {
       title: "TOTAL SALES",
-      value: loading ? "..." : formatCurrency(totalSales),
+      value: formatCurrency(totalSales),
       trend: "+12.5%",
       icon: TrendingUp,
     },
     {
       title: "TOTAL PRODUCTS",
-      value: loading ? "..." : (totalProducts !== undefined ? String(totalProducts) : "482"),
+      value: totalProducts !== undefined ? String(totalProducts) : "482",
       subtext: "Across active catalog",
       icon: Package,
     },
     {
       title: "LOW STOCK COUNT",
-      value: loading ? "..." : (lowStockCount !== undefined ? String(lowStockCount) : "14"),
+      value: lowStockCount !== undefined ? String(lowStockCount) : "14",
       alertText: "Requires attention",
       isAlert: true,
       icon: AlertTriangle,
     },
     {
       title: "ACTIVE STAFF COUNT",
-      value: loading ? "..." : (activeStaffCount !== undefined ? String(activeStaffCount) : "8"),
+      value: activeStaffCount !== undefined ? String(activeStaffCount) : "8",
       subtext: "System registered users",
       icon: Users,
     },
@@ -69,7 +70,9 @@ export function KpiCardsSection({
             </div>
 
             <div className="text-2xl font-bold text-[#341100] tracking-tight">
-              {kpi.isAlert ? (
+              {loading ? (
+                <Skeleton className="h-7 w-28 rounded-lg my-0.5" />
+              ) : kpi.isAlert ? (
                 <span className="text-red-700">{kpi.value}</span>
               ) : (
                 kpi.value
@@ -77,25 +80,31 @@ export function KpiCardsSection({
             </div>
 
             <div className="pt-1">
-              {kpi.trend && (
-                <div className="flex items-center gap-1">
-                  <Badge variant="success" className="text-[11px] font-semibold uppercase tracking-wide gap-1 bg-emerald-50 text-emerald-800 border-emerald-200">
-                    <TrendingUp className="w-3 h-3" />
-                    {kpi.trend}
-                  </Badge>
-                </div>
-              )}
+              {loading ? (
+                <Skeleton className="h-4 w-24 rounded-md" />
+              ) : (
+                <>
+                  {kpi.trend && (
+                    <div className="flex items-center gap-1">
+                      <Badge variant="success" className="text-[11px] font-semibold uppercase tracking-wide gap-1">
+                        <TrendingUp className="w-3 h-3" />
+                        {kpi.trend}
+                      </Badge>
+                    </div>
+                  )}
 
-              {kpi.subtext && (
-                <span className="text-xs font-normal text-[#7f5e35]">
-                  {kpi.subtext}
-                </span>
-              )}
+                  {kpi.subtext && (
+                    <span className="text-xs font-normal text-[#7f5e35]">
+                      {kpi.subtext}
+                    </span>
+                  )}
 
-              {kpi.alertText && (
-                <Badge variant="destructive" className="text-[11px] font-semibold uppercase tracking-wide">
-                  {kpi.alertText}
-                </Badge>
+                  {kpi.alertText && (
+                    <Badge variant="destructive" className="text-[11px] font-semibold uppercase tracking-wide">
+                      {kpi.alertText}
+                    </Badge>
+                  )}
+                </>
               )}
             </div>
           </CardContent>
