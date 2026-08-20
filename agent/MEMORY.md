@@ -4,7 +4,7 @@
 * **Project Name:** Mini-ERP Web System (`mini-erp-app`)
 * **Business Domain:** Luxury Furniture & Interior Living Enterprise Operations
 * **Repository:** `https://github.com/johnmichaelangelolalisna4-beep/mini-erp.git` (branch: `master`)
-* **Workspace Path:** `c:\Users\Acer\Downloads\Mini-ERP-master (2)\Mini-ERP-master`
+* **Workspace Path:** `c:\Users\Acer\Downloads\Mini-ERP-master (2)` (Root level)
 * **Tech Stack:** Next.js 16.3.0 (App Router), React 19, TypeScript 5, Supabase (`@supabase/supabase-js`, `@supabase/ssr`), Tailwind CSS v4, shadcn/ui primitives, Recharts, Lucide Icons.
 * **Database & Auth:** Supabase (`https://qaodmynygehskbxsouvs.supabase.co`)
 
@@ -29,15 +29,15 @@ All UI components strictly adhere to the Warm Espresso & Timber color palette:
 * `SUPABASE_SERVICE_ROLE_KEY`: Supabase service role key configured
 
 ### B. SSR Client Helpers & Middleware
-* [`lib/supabase/client.ts`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/Mini-ERP-master/lib/supabase/client.ts): Browser client helper (`createBrowserClient`).
-* [`lib/supabase/server.ts`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/Mini-ERP-master/lib/supabase/server.ts): Server component & admin service role client helper.
-* [`lib/supabase/middleware.ts`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/Mini-ERP-master/lib/supabase/middleware.ts) & [`middleware.ts`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/Mini-ERP-master/middleware.ts): Next.js session refresh middleware.
+* [`lib/supabase/client.ts`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/lib/supabase/client.ts): Browser client helper (`createBrowserClient`).
+* [`lib/supabase/server.ts`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/lib/supabase/server.ts): Server component & admin service role client helper.
+* [`lib/supabase/middleware.ts`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/lib/supabase/middleware.ts) & [`middleware.ts`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/middleware.ts): Next.js session refresh middleware.
 
 ### C. Admin Auth API Endpoints
-* **[`app/api/admin/create-user/route.ts`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/Mini-ERP-master/app/api/admin/create-user/route.ts)**: Registers employee in Supabase Authentication (`auth.users`) with `email_confirm: true` and syncs with `public.profiles`.
-* **[`app/api/admin/delete-user/route.ts`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/Mini-ERP-master/app/api/admin/delete-user/route.ts)**: Deletes user from both `auth.users` and `public.profiles`.
-* **[`supabase/admin-seed.sql`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/Mini-ERP-master/supabase/admin-seed.sql)**: SQL script to seed or update Admin accounts safely in SQL Editor.
-* **[`supabase/schema.sql`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/Mini-ERP-master/supabase/schema.sql)**: Pure idempotent DDL database schema with `DROP POLICY IF EXISTS` handling for safe re-runs.
+* **[`app/api/admin/create-user/route.ts`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/app/api/admin/create-user/route.ts)**: Registers employee in Supabase Authentication (`auth.users`) with `email_confirm: true` and syncs with `public.profiles`.
+* **[`app/api/admin/delete-user/route.ts`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/app/api/admin/delete-user/route.ts)**: Deletes user from both `auth.users` and `public.profiles`.
+* **[`supabase/admin-seed.sql`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/supabase/admin-seed.sql)**: SQL script to seed or update Admin accounts safely in SQL Editor.
+* **[`supabase/schema.sql`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/supabase/schema.sql)**: Pure idempotent DDL database schema with `DROP POLICY IF EXISTS` handling for safe re-runs.
 
 ---
 
@@ -63,13 +63,14 @@ All UI components strictly adhere to the Warm Espresso & Timber color palette:
 ---
 
 ## 5. Key UI Fixes & Enhancements Completed
-1. **Dynamic Navigation & Live Badges**: Centralized config in `lib/config/navigation.ts` with real-time Supabase counter badges in `lib/hooks/use-sidebar-metrics.ts`.
-2. **Hardcoded Data Removal**: 100% of static dummy mock data eliminated across charts, KPIs, finance ledgers, and user directories.
-3. **No Sticky Zeros**: Numeric inputs accept empty strings so Backspace completely clears the field.
-4. **No Browser Stepper Spinners**: Globally suppressed spin buttons on `input[type="number"]` in `app/globals.css`.
-5. **Product Edit Feature**: Full editing modal for SKU, Name, Collection, Price, Stock, and Threshold in Admin Inventory.
-6. **Auto-Calculated Order Totals**: Automatically computes and fills out `Total Amount = Unit Price × Quantity` in Create Order modal.
-7. **Custom Warm Espresso Dropdowns**: Replaced native browser select elements with custom styled interactive dropdowns.
+1. **Workspace Flattening**: Removed inner `Mini-ERP-master` subfolder; all source code and configs are located at root.
+2. **Dynamic Navigation & Live Badges**: Centralized config in `lib/config/navigation.ts` with real-time Supabase counter badges in `lib/hooks/use-sidebar-metrics.ts`.
+3. **Hardcoded Data Removal**: 100% of static dummy mock data eliminated across charts, KPIs, finance ledgers, and user directories.
+4. **No Sticky Zeros**: Numeric inputs accept empty strings so Backspace completely clears the field.
+5. **No Browser Stepper Spinners**: Globally suppressed spin buttons on `input[type="number"]` in `app/globals.css`.
+6. **Product Edit Feature**: Full editing modal for SKU, Name, Collection, Price, Stock, and Threshold in Admin Inventory.
+7. **Auto-Calculated Order Totals**: Automatically computes and fills out `Total Amount = Unit Price × Quantity` in Create Order modal.
+8. **Custom Warm Espresso Dropdowns**: Replaced native browser select elements with custom styled interactive dropdowns.
 
 ---
 
