@@ -1,7 +1,7 @@
 -- ========================================================
--- MINI-ERP SUPABASE DATABASE SCHEMA & INITIAL SEED DATA
+-- MINI-ERP SUPABASE DATABASE DDL SCHEMA (IDEMPOTENT)
 -- Project: mini-erp-app
--- Description: Complete schema for Products, Orders, Invoices, Stock Logs & User Roles
+-- Description: Core Schema Definitions for Products, Orders, Order Items, Invoices, Stock Logs & User Profiles
 -- ========================================================
 
 -- 1. EXTENSIONS
@@ -75,7 +75,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 );
 
 -- ========================================================
--- ROW LEVEL SECURITY (RLS) POLICIES
+-- ROW LEVEL SECURITY (RLS) POLICIES (SAFE / RE-RUNNABLE)
 -- ========================================================
 
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
@@ -85,54 +85,44 @@ ALTER TABLE public.invoices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.stock_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
--- Allow read/write access for public/authenticated clients (can be refined per portal role)
+-- 1. Products Policies
+DROP POLICY IF EXISTS "Allow public read access on products" ON public.products;
 CREATE POLICY "Allow public read access on products" ON public.products FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public insert/update on products" ON public.products;
 CREATE POLICY "Allow public insert/update on products" ON public.products FOR ALL USING (true);
 
+-- 2. Orders Policies
+DROP POLICY IF EXISTS "Allow public read access on orders" ON public.orders;
 CREATE POLICY "Allow public read access on orders" ON public.orders FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public insert/update on orders" ON public.orders;
 CREATE POLICY "Allow public insert/update on orders" ON public.orders FOR ALL USING (true);
 
+-- 3. Order Items Policies
+DROP POLICY IF EXISTS "Allow public read access on order_items" ON public.order_items;
 CREATE POLICY "Allow public read access on order_items" ON public.order_items FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public insert/update on order_items" ON public.order_items;
 CREATE POLICY "Allow public insert/update on order_items" ON public.order_items FOR ALL USING (true);
 
+-- 4. Invoices Policies
+DROP POLICY IF EXISTS "Allow public read access on invoices" ON public.invoices;
 CREATE POLICY "Allow public read access on invoices" ON public.invoices FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public insert/update on invoices" ON public.invoices;
 CREATE POLICY "Allow public insert/update on invoices" ON public.invoices FOR ALL USING (true);
 
+-- 5. Stock Logs Policies
+DROP POLICY IF EXISTS "Allow public read access on stock_logs" ON public.stock_logs;
 CREATE POLICY "Allow public read access on stock_logs" ON public.stock_logs FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public insert/update on stock_logs" ON public.stock_logs;
 CREATE POLICY "Allow public insert/update on stock_logs" ON public.stock_logs FOR ALL USING (true);
 
+-- 6. Profiles Policies
+DROP POLICY IF EXISTS "Allow public read access on profiles" ON public.profiles;
 CREATE POLICY "Allow public read access on profiles" ON public.profiles FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public insert/update on profiles" ON public.profiles;
 CREATE POLICY "Allow public insert/update on profiles" ON public.profiles FOR ALL USING (true);
-
--- ========================================================
--- INITIAL SEED DATA
--- ========================================================
-
-INSERT INTO public.products (sku, name, category, stock_count, unit_price, reorder_level, status)
-VALUES 
-    ('SKU-1001', 'Espresso Blend Whole Bean 1kg', 'Coffee Beans', 145, 28.50, 20, 'IN STOCK'),
-    ('SKU-1002', 'Ethiopian Yirgacheffe Light Roast 500g', 'Coffee Beans', 8, 19.99, 15, 'LOW STOCK'),
-    ('SKU-1003', 'Oat Milk Barista Edition 1L (Case of 12)', 'Dairy & Alternatives', 0, 42.00, 10, 'OUT OF STOCK'),
-    ('SKU-1004', 'Commercial Dual Boiler Espresso Machine', 'Equipment', 4, 3450.00, 2, 'IN STOCK'),
-    ('SKU-1005', 'Precision Burr Grinder 64mm', 'Equipment', 12, 580.00, 5, 'IN STOCK')
-ON CONFLICT (sku) DO NOTHING;
-
-INSERT INTO public.orders (order_number, customer_name, total_amount, status, created_by_role)
-VALUES 
-    ('ORD-2026-001', 'Artisan Roasters Co.', 1250.00, 'COMPLETED', 'Sales Rep'),
-    ('ORD-2026-002', 'Downtown Grind Cafe', 485.50, 'PENDING', 'Sales Rep'),
-    ('ORD-2026-003', 'Bean & Leaf Bistro', 3200.00, 'COMPLETED', 'Admin')
-ON CONFLICT (order_number) DO NOTHING;
-
-INSERT INTO public.invoices (invoice_number, customer_name, amount, due_date, status)
-VALUES 
-    ('INV-2026-101', 'Artisan Roasters Co.', 1250.00, '2026-09-01', 'PAID'),
-    ('INV-2026-102', 'Downtown Grind Cafe', 485.50, '2026-08-30', 'UNPAID'),
-    ('INV-2026-103', 'Bean & Leaf Bistro', 3200.00, '2026-08-15', 'OVERDUE')
-ON CONFLICT (invoice_number) DO NOTHING;
-
-INSERT INTO public.profiles (email, full_name, role)
-VALUES 
-    ('admin@minierp.com', 'System Administrator', 'Admin'),
-    ('jane.smith@minierp.com', 'Jane Smith', 'Admin')
-ON CONFLICT (email) DO NOTHING;

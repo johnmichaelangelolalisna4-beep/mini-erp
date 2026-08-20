@@ -1,29 +1,48 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Search, Filter, Plus, Package, AlertTriangle, Layers, MoreHorizontal, Trash2, X, RefreshCw } from "lucide-react";
+import { Search, Filter, Plus, Package, AlertTriangle, Layers, Trash2, Edit2, X, RefreshCw, CheckCircle2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { fetchProducts, createProduct, deleteProduct, Product } from "@/lib/services/admin";
+import { fetchProducts, createProduct, updateProduct, deleteProduct, Product } from "@/lib/services/admin";
 
 export function InventoryPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // New product form state
-  const [newProduct, setNewProduct] = useState({
+  // New product form state with empty string allowed to prevent sticky 0
+  const [newProduct, setNewProduct] = useState<{
+    sku: string;
+    name: string;
+    category: string;
+    stock_count: string | number;
+    unit_price: string | number;
+    reorder_level: string | number;
+  }>({
     sku: "",
     name: "",
-    category: "Coffee Beans",
-    stock_count: 50,
-    unit_price: 25.00,
-    reorder_level: 10,
+    category: "Living Room",
+    stock_count: "",
+    unit_price: "",
+    reorder_level: "",
   });
+
+  // Editing product state
+  const [editingProduct, setEditingProduct] = useState<{
+    id: string;
+    sku: string;
+    name: string;
+    category: string;
+    stock_count: string | number;
+    unit_price: string | number;
+    reorder_level: string | number;
+  } | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -47,9 +66,13 @@ export function InventoryPage() {
 
     setSubmitting(true);
     try {
-      const status = newProduct.stock_count === 0 
+      const stockCount = Number(newProduct.stock_count) || 0;
+      const unitPrice = Number(newProduct.unit_price) || 0;
+      const reorderLevel = Number(newProduct.reorder_level) || 0;
+
+      const status = stockCount === 0 
         ? "OUT OF STOCK" 
-        : newProduct.stock_count <= newProduct.reorder_level 
+        : stockCount <= reorderLevel 
         ? "LOW STOCK" 
         : "IN STOCK";
 
@@ -57,9 +80,9 @@ export function InventoryPage() {
         sku: newProduct.sku,
         name: newProduct.name,
         category: newProduct.category,
-        stock_count: Number(newProduct.stock_count),
-        unit_price: Number(newProduct.unit_price),
-        reorder_level: Number(newProduct.reorder_level),
+        stock_count: stockCount,
+        unit_price: unitPrice,
+        reorder_level: reorderLevel,
         status,
       });
 
@@ -67,10 +90,10 @@ export function InventoryPage() {
       setNewProduct({
         sku: "",
         name: "",
-        category: "Coffee Beans",
-        stock_count: 50,
-        unit_price: 25.00,
-        reorder_level: 10,
+        category: "Living Room",
+        stock_count: "",
+        unit_price: "",
+        reorder_level: "",
       });
       loadData();
     } catch (err) {
@@ -81,8 +104,58 @@ export function InventoryPage() {
     }
   };
 
+  const handleOpenEdit = (product: Product) => {
+    setEditingProduct({
+      id: product.id,
+      sku: product.sku,
+      name: product.name,
+      category: product.category || "Living Room",
+      stock_count: product.stock_count,
+      unit_price: product.unit_price,
+      reorder_level: product.reorder_level,
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdateProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProduct || !editingProduct.sku || !editingProduct.name) return;
+
+    setSubmitting(true);
+    try {
+      const stockCount = Number(editingProduct.stock_count) || 0;
+      const unitPrice = Number(editingProduct.unit_price) || 0;
+      const reorderLevel = Number(editingProduct.reorder_level) || 0;
+
+      const status = stockCount === 0 
+        ? "OUT OF STOCK" 
+        : stockCount <= reorderLevel 
+        ? "LOW STOCK" 
+        : "IN STOCK";
+
+      await updateProduct(editingProduct.id, {
+        sku: editingProduct.sku,
+        name: editingProduct.name,
+        category: editingProduct.category,
+        stock_count: stockCount,
+        unit_price: unitPrice,
+        reorder_level: reorderLevel,
+        status,
+      });
+
+      setIsEditModalOpen(false);
+      setEditingProduct(null);
+      loadData();
+    } catch (err) {
+      console.error("Error updating product:", err);
+      alert("Failed to update product details.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this product?")) return;
+    if (!confirm("Are you sure you want to delete this furniture SKU?")) return;
     try {
       await deleteProduct(id);
       loadData();
@@ -113,10 +186,10 @@ export function InventoryPage() {
               </Badge>
             </div>
             <h1 className="text-2xl font-bold text-[#341100] tracking-tight">
-              Inventory & Products
+              Furniture Catalog & Inventory
             </h1>
             <p className="text-xs font-normal text-[#7f5e35] mt-1">
-              Manage product catalogue, real-time stock levels, categories, and stock reorders in Supabase.
+              Manage furniture collections, showroom inventory, woodcraft stock levels, categories, and restock thresholds in Supabase.
             </p>
           </div>
 
@@ -125,7 +198,7 @@ export function InventoryPage() {
               variant="outline"
               onClick={loadData}
               disabled={loading}
-              className="border-[#e8decf] text-[#713105] hover:bg-[#fff7e8] rounded-xl text-xs gap-1.5"
+              className="border-[#e8decf] text-[#713105] hover:bg-[#fff7e8] rounded-xl text-xs gap-1.5 cursor-pointer active:scale-95"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
               Refresh
@@ -133,10 +206,10 @@ export function InventoryPage() {
 
             <Button
               onClick={() => setIsModalOpen(true)}
-              className="bg-[#713105] text-[#fff7e8] hover:bg-[#4f351c] gap-2 rounded-xl text-xs font-semibold px-4 py-2"
+              className="bg-[#713105] text-[#fff7e8] hover:bg-[#4f351c] gap-2 rounded-xl text-xs font-semibold px-4 py-2 cursor-pointer active:scale-95"
             >
               <Plus className="w-4 h-4" />
-              Add New Product
+              Add Furniture Item
             </Button>
           </div>
         </CardContent>
@@ -144,40 +217,40 @@ export function InventoryPage() {
 
       {/* Summary KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="border-[#e8decf] bg-white p-4 rounded-xl">
+        <Card className="border-[#e8decf] bg-white p-4 rounded-xl shadow-xs">
           <div className="flex items-center justify-between text-[#7f5e35] text-xs font-semibold uppercase">
-            <span>Total Products</span>
+            <span>Furniture SKUs</span>
             <Package className="w-4 h-4 text-[#713105]" />
           </div>
           <div className="text-2xl font-bold text-[#341100] mt-2">{products.length}</div>
-          <span className="text-[11px] text-[#7f5e35] font-normal">Active SKUs</span>
+          <span className="text-[11px] text-[#7f5e35] font-normal">Active designs in catalog</span>
         </Card>
 
-        <Card className="border-[#e8decf] bg-white p-4 rounded-xl">
+        <Card className="border-[#e8decf] bg-white p-4 rounded-xl shadow-xs">
           <div className="flex items-center justify-between text-[#7f5e35] text-xs font-semibold uppercase">
-            <span>Total Categories</span>
+            <span>Collections / Categories</span>
             <Layers className="w-4 h-4 text-[#713105]" />
           </div>
           <div className="text-2xl font-bold text-[#341100] mt-2">{categoriesCount}</div>
-          <span className="text-[11px] text-[#7f5e35] font-normal">Product groupings</span>
+          <span className="text-[11px] text-[#7f5e35] font-normal">Living, Dining, Bedroom etc.</span>
         </Card>
 
-        <Card className="border-[#e8decf] bg-white p-4 rounded-xl">
+        <Card className="border-[#e8decf] bg-white p-4 rounded-xl shadow-xs">
           <div className="flex items-center justify-between text-[#7f5e35] text-xs font-semibold uppercase">
             <span>Low Stock Alerts</span>
             <AlertTriangle className="w-4 h-4 text-amber-600" />
           </div>
           <div className="text-2xl font-bold text-red-700 mt-2">{lowStockCount}</div>
-          <span className="text-[11px] text-red-700 font-semibold">Requires reorder</span>
+          <span className="text-[11px] text-red-700 font-semibold">Requires restock / craft</span>
         </Card>
 
-        <Card className="border-[#e8decf] bg-white p-4 rounded-xl">
+        <Card className="border-[#e8decf] bg-white p-4 rounded-xl shadow-xs">
           <div className="flex items-center justify-between text-[#7f5e35] text-xs font-semibold uppercase">
-            <span>Total Stock Units</span>
+            <span>Total Units in Stock</span>
             <Package className="w-4 h-4 text-[#713105]" />
           </div>
           <div className="text-2xl font-bold text-[#341100] mt-2">{totalStockUnits.toLocaleString()}</div>
-          <span className="text-[11px] text-[#7f5e35] font-normal">Units in warehouse</span>
+          <span className="text-[11px] text-[#7f5e35] font-normal">Showroom & warehouse units</span>
         </Card>
       </div>
 
@@ -185,14 +258,14 @@ export function InventoryPage() {
       <Card className="border-[#e8decf] shadow-xs rounded-xl bg-white overflow-hidden">
         <CardHeader className="p-5 border-b border-[#e8decf] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <CardTitle className="text-sm font-semibold text-[#4f351c]">
-            Product Catalog & Stock Status ({filteredProducts.length})
+            Furniture Collection & Stock Status ({filteredProducts.length})
           </CardTitle>
 
           <div className="flex items-center gap-3 w-full md:w-auto">
             <div className="relative flex-1 md:w-64">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#7f5e35]" />
               <Input
-                placeholder="Filter by product name, category, or SKU..."
+                placeholder="Filter by piece name, collection, or SKU..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9 bg-[#fff7e8] border-[#e8decf] text-xs text-[#341100] rounded-xl placeholder:text-[#7f5e35]/60"
@@ -209,7 +282,7 @@ export function InventoryPage() {
           <table className="w-full text-left text-xs text-[#341100]">
             <thead className="bg-[#fff7e8] border-b border-[#e8decf] text-[11px] uppercase tracking-wider text-[#7f5e35] font-semibold">
               <tr>
-                <th className="py-3 px-4">Product Name</th>
+                <th className="py-3 px-4">Furniture Piece</th>
                 <th className="py-3 px-4">Category</th>
                 <th className="py-3 px-4">SKU</th>
                 <th className="py-3 px-4">Stock Level</th>
@@ -222,13 +295,13 @@ export function InventoryPage() {
               {loading ? (
                 <tr>
                   <td colSpan={7} className="py-8 text-center text-xs text-[#7f5e35]">
-                    Loading products from Supabase...
+                    Loading furniture catalog from Supabase...
                   </td>
                 </tr>
               ) : filteredProducts.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-8 text-center text-xs text-[#7f5e35]">
-                    No products found. Click "Add New Product" to create one.
+                    No furniture items found. Click "Add Furniture Item" to register your first piece.
                   </td>
                 </tr>
               ) : (
@@ -239,10 +312,10 @@ export function InventoryPage() {
                       <div className="text-[10px] text-[#7f5e35] font-normal">{product.id.slice(0, 8)}...</div>
                     </td>
                     <td className="py-3.5 px-4 text-[#7f5e35] font-normal">{product.category}</td>
-                    <td className="py-3.5 px-4 font-mono text-[11px] text-[#4f351c]">{product.sku}</td>
+                    <td className="py-3.5 px-4 font-mono text-[11px] text-[#4f351c] font-semibold">{product.sku}</td>
                     <td className="py-3.5 px-4 font-semibold text-[#341100]">
                       {product.stock_count} units
-                      <div className="text-[10px] text-[#7f5e35] font-normal">Reorder level: {product.reorder_level}</div>
+                      <div className="text-[10px] text-[#7f5e35] font-normal">Reorder threshold: {product.reorder_level}</div>
                     </td>
                     <td className="py-3.5 px-4 font-semibold text-[#341100]">
                       ${Number(product.unit_price).toFixed(2)}
@@ -265,14 +338,26 @@ export function InventoryPage() {
                       )}
                     </td>
                     <td className="py-3.5 px-4 text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(product.id)}
-                        className="h-8 w-8 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleOpenEdit(product)}
+                          className="h-8 w-8 text-[#713105] hover:text-[#341100] hover:bg-[#fff7e8] rounded-lg cursor-pointer transition-all active:scale-95"
+                          title="Edit Furniture Details"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(product.id)}
+                          className="h-8 w-8 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg cursor-pointer transition-all active:scale-95"
+                          title="Delete Furniture SKU"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -287,7 +372,7 @@ export function InventoryPage() {
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
           <Card className="w-full max-w-md bg-white border-[#e8decf] shadow-xl rounded-2xl overflow-hidden animate-in fade-in zoom-in duration-150">
             <CardHeader className="bg-[#fff7e8] border-b border-[#e8decf] p-4 flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-bold text-[#341100]">Add New Product SKU</CardTitle>
+              <CardTitle className="text-sm font-bold text-[#341100]">Add New Furniture Piece</CardTitle>
               <Button
                 variant="ghost"
                 size="icon"
@@ -304,20 +389,20 @@ export function InventoryPage() {
                 </label>
                 <Input
                   required
-                  placeholder="e.g. SKU-1006"
+                  placeholder="e.g. OAK-1001, SOFA-202"
                   value={newProduct.sku}
                   onChange={(e) => setNewProduct({ ...newProduct, sku: e.target.value })}
-                  className="bg-[#fff7e8] border-[#e8decf] text-xs text-[#341100] rounded-xl"
+                  className="bg-[#fff7e8] border-[#e8decf] text-xs text-[#341100] rounded-xl font-mono"
                 />
               </div>
 
               <div>
                 <label className="text-[11px] font-semibold text-[#4f351c] uppercase block mb-1">
-                  Product Name *
+                  Furniture Piece Name *
                 </label>
                 <Input
                   required
-                  placeholder="e.g. Organic Colombian Medium Roast"
+                  placeholder="e.g. Nordic Solid Oak Dining Table 6-Seater"
                   value={newProduct.name}
                   onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
                   className="bg-[#fff7e8] border-[#e8decf] text-xs text-[#341100] rounded-xl"
@@ -327,18 +412,20 @@ export function InventoryPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[11px] font-semibold text-[#4f351c] uppercase block mb-1">
-                    Category
+                    Category / Collection
                   </label>
                   <select
                     value={newProduct.category}
                     onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
-                    className="w-full bg-[#fff7e8] border border-[#e8decf] text-xs text-[#341100] rounded-xl p-2.5 outline-none"
+                    className="w-full bg-[#fff7e8] border border-[#e8decf] text-xs text-[#341100] rounded-xl p-2.5 outline-none font-medium cursor-pointer"
                   >
-                    <option value="Coffee Beans">Coffee Beans</option>
-                    <option value="Dairy & Alternatives">Dairy & Alternatives</option>
-                    <option value="Equipment">Equipment</option>
-                    <option value="Syrups & Flavors">Syrups & Flavors</option>
-                    <option value="Packaging">Packaging</option>
+                    <option value="Living Room">Living Room</option>
+                    <option value="Dining & Kitchen">Dining & Kitchen</option>
+                    <option value="Bedroom">Bedroom</option>
+                    <option value="Office & Workspace">Office & Workspace</option>
+                    <option value="Outdoor & Patio">Outdoor & Patio</option>
+                    <option value="Lighting & Decor">Lighting & Decor</option>
+                    <option value="Storage & Cabinets">Storage & Cabinets</option>
                   </select>
                 </div>
 
@@ -350,8 +437,10 @@ export function InventoryPage() {
                     type="number"
                     step="0.01"
                     required
+                    placeholder="e.g. 450.00"
                     value={newProduct.unit_price}
-                    onChange={(e) => setNewProduct({ ...newProduct, unit_price: Number(e.target.value) })}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => setNewProduct({ ...newProduct, unit_price: e.target.value })}
                     className="bg-[#fff7e8] border-[#e8decf] text-xs text-[#341100] rounded-xl"
                   />
                 </div>
@@ -360,13 +449,15 @@ export function InventoryPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[11px] font-semibold text-[#4f351c] uppercase block mb-1">
-                    Stock Quantity *
+                    Stock Units in Stock *
                   </label>
                   <Input
                     type="number"
                     required
+                    placeholder="e.g. 15"
                     value={newProduct.stock_count}
-                    onChange={(e) => setNewProduct({ ...newProduct, stock_count: Number(e.target.value) })}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => setNewProduct({ ...newProduct, stock_count: e.target.value })}
                     className="bg-[#fff7e8] border-[#e8decf] text-xs text-[#341100] rounded-xl"
                   />
                 </div>
@@ -378,8 +469,10 @@ export function InventoryPage() {
                   <Input
                     type="number"
                     required
+                    placeholder="e.g. 5"
                     value={newProduct.reorder_level}
-                    onChange={(e) => setNewProduct({ ...newProduct, reorder_level: Number(e.target.value) })}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => setNewProduct({ ...newProduct, reorder_level: e.target.value })}
                     className="bg-[#fff7e8] border-[#e8decf] text-xs text-[#341100] rounded-xl"
                   />
                 </div>
@@ -390,16 +483,159 @@ export function InventoryPage() {
                   type="button"
                   variant="outline"
                   onClick={() => setIsModalOpen(false)}
-                  className="border-[#e8decf] text-[#7f5e35] text-xs rounded-xl"
+                  className="border-[#e8decf] text-[#7f5e35] text-xs rounded-xl cursor-pointer"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
                   disabled={submitting}
-                  className="bg-[#713105] text-[#fff7e8] hover:bg-[#4f351c] text-xs font-semibold rounded-xl"
+                  className="bg-[#713105] text-[#fff7e8] hover:bg-[#4f351c] text-xs font-semibold rounded-xl cursor-pointer"
                 >
-                  {submitting ? "Saving..." : "Save Product"}
+                  {submitting ? "Saving..." : "Save Furniture Piece"}
+                </Button>
+              </div>
+            </form>
+          </Card>
+        </div>
+      )}
+
+      {/* Edit Product Modal */}
+      {isEditModalOpen && editingProduct && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <Card className="w-full max-w-md bg-white border-[#e8decf] shadow-xl rounded-2xl overflow-hidden animate-in fade-in zoom-in duration-150">
+            <CardHeader className="bg-[#fff7e8] border-b border-[#e8decf] p-4 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-bold text-[#341100] flex items-center gap-2">
+                <Edit2 className="w-4 h-4 text-[#713105]" />
+                Edit Furniture Details
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  setIsEditModalOpen(false);
+                  setEditingProduct(null);
+                }}
+                className="h-8 w-8 text-[#7f5e35]"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </CardHeader>
+            <form onSubmit={handleUpdateProduct} className="p-5 space-y-4">
+              <div>
+                <label className="text-[11px] font-semibold text-[#4f351c] uppercase block mb-1">
+                  SKU Code *
+                </label>
+                <Input
+                  required
+                  placeholder="e.g. OAK-1001, SOFA-202"
+                  value={editingProduct.sku}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, sku: e.target.value })}
+                  className="bg-[#fff7e8] border-[#e8decf] text-xs text-[#341100] rounded-xl font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-semibold text-[#4f351c] uppercase block mb-1">
+                  Furniture Piece Name *
+                </label>
+                <Input
+                  required
+                  placeholder="e.g. Nordic Solid Oak Dining Table 6-Seater"
+                  value={editingProduct.name}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
+                  className="bg-[#fff7e8] border-[#e8decf] text-xs text-[#341100] rounded-xl"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-semibold text-[#4f351c] uppercase block mb-1">
+                    Category / Collection
+                  </label>
+                  <select
+                    value={editingProduct.category}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, category: e.target.value })}
+                    className="w-full bg-[#fff7e8] border border-[#e8decf] text-xs text-[#341100] rounded-xl p-2.5 outline-none font-medium cursor-pointer"
+                  >
+                    <option value="Living Room">Living Room</option>
+                    <option value="Dining & Kitchen">Dining & Kitchen</option>
+                    <option value="Bedroom">Bedroom</option>
+                    <option value="Office & Workspace">Office & Workspace</option>
+                    <option value="Outdoor & Patio">Outdoor & Patio</option>
+                    <option value="Lighting & Decor">Lighting & Decor</option>
+                    <option value="Storage & Cabinets">Storage & Cabinets</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-semibold text-[#4f351c] uppercase block mb-1">
+                    Unit Price ($) *
+                  </label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    required
+                    placeholder="e.g. 450.00"
+                    value={editingProduct.unit_price}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, unit_price: e.target.value })}
+                    className="bg-[#fff7e8] border-[#e8decf] text-xs text-[#341100] rounded-xl"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-semibold text-[#4f351c] uppercase block mb-1">
+                    Stock Units in Stock *
+                  </label>
+                  <Input
+                    type="number"
+                    required
+                    placeholder="e.g. 15"
+                    value={editingProduct.stock_count}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, stock_count: e.target.value })}
+                    className="bg-[#fff7e8] border-[#e8decf] text-xs text-[#341100] rounded-xl"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-semibold text-[#4f351c] uppercase block mb-1">
+                    Reorder Threshold *
+                  </label>
+                  <Input
+                    type="number"
+                    required
+                    placeholder="e.g. 5"
+                    value={editingProduct.reorder_level}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, reorder_level: e.target.value })}
+                    className="bg-[#fff7e8] border-[#e8decf] text-xs text-[#341100] rounded-xl"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setIsEditModalOpen(false);
+                    setEditingProduct(null);
+                  }}
+                  className="border-[#e8decf] text-[#7f5e35] text-xs rounded-xl cursor-pointer"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={submitting}
+                  className="bg-[#713105] text-[#fff7e8] hover:bg-[#4f351c] text-xs font-semibold rounded-xl cursor-pointer gap-1.5"
+                >
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  {submitting ? "Saving..." : "Update Furniture Piece"}
                 </Button>
               </div>
             </form>

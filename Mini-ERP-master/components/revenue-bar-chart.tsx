@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   BarChart,
   Bar,
@@ -12,15 +12,7 @@ import {
 } from "recharts";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart";
-
-const chartData = [
-  { month: "Jan", revenue: 18500, orders: 190 },
-  { month: "Feb", revenue: 22400, orders: 210 },
-  { month: "Mar", revenue: 19800, orders: 185 },
-  { month: "Apr", revenue: 27100, orders: 240 },
-  { month: "May", revenue: 24900, orders: 225 },
-  { month: "Jun", revenue: 31892, orders: 234 },
-];
+import { Order } from "@/lib/services/admin";
 
 const chartConfig: ChartConfig = {
   revenue: {
@@ -33,25 +25,69 @@ const chartConfig: ChartConfig = {
   },
 };
 
-export function RevenueBarChart() {
+interface RevenueBarChartProps {
+  orders?: Order[];
+}
+
+export function RevenueBarChart({ orders = [] }: RevenueBarChartProps) {
   const [chartType, setChartType] = useState<"bar" | "area">("bar");
 
+  // Dynamically compute past 6 months from real orders
+  const chartData = useMemo(() => {
+    const months: { [key: string]: { month: string; revenue: number; orders: number; dateKey: string } } = {};
+    const now = new Date();
+
+    // Generate last 6 month buckets
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthShort = d.toLocaleString("en-US", { month: "short" });
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      months[key] = {
+        month: monthShort,
+        revenue: 0,
+        orders: 0,
+        dateKey: key,
+      };
+    }
+
+    // Populate with real orders
+    orders.forEach((order) => {
+      if (!order.created_at) return;
+      const orderDate = new Date(order.created_at);
+      const key = `${orderDate.getFullYear()}-${orderDate.getMonth()}`;
+
+      if (months[key]) {
+        if (order.status === "COMPLETED") {
+          months[key].revenue += Number(order.total_amount || 0);
+        }
+        months[key].orders += 1;
+      }
+    });
+
+    return Object.values(months);
+  }, [orders]);
+
+  const totalChartRevenue = chartData.reduce((acc, curr) => acc + curr.revenue, 0);
+
   return (
-    <Card className="border-[#e8decf] shadow-xs rounded-xl flex flex-col justify-between bg-white">
+    <Card className="border-[#e8decf] shadow-xs rounded-xl flex flex-col justify-between bg-white h-full">
       <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-[#e8decf]">
         <div>
           <CardTitle className="text-sm font-semibold text-[#341100]">
             Revenue Analytics
           </CardTitle>
+          <span className="text-[11px] text-[#7f5e35]">
+            Total Trailing 6M: <strong className="text-[#713105] font-bold">${totalChartRevenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong>
+          </span>
         </div>
         <div className="flex items-center gap-3">
           {/* Chart Type Selector */}
           <div className="flex items-center bg-[#fff7e8] p-0.5 rounded-lg border border-[#e8decf] text-[11px]">
             <button
               onClick={() => setChartType("bar")}
-              className={`px-2.5 py-1 rounded-md transition-all ${
+              className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
                 chartType === "bar"
-                  ? "bg-[#713105] text-[#fff7e8] font-semibold"
+                  ? "bg-[#713105] text-[#fff7e8] font-semibold shadow-2xs"
                   : "text-[#7f5e35] hover:text-[#341100]"
               }`}
             >
@@ -59,9 +95,9 @@ export function RevenueBarChart() {
             </button>
             <button
               onClick={() => setChartType("area")}
-              className={`px-2.5 py-1 rounded-md transition-all ${
+              className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
                 chartType === "area"
-                  ? "bg-[#713105] text-[#fff7e8] font-semibold"
+                  ? "bg-[#713105] text-[#fff7e8] font-semibold shadow-2xs"
                   : "text-[#7f5e35] hover:text-[#341100]"
               }`}
             >
@@ -75,10 +111,10 @@ export function RevenueBarChart() {
         </div>
       </CardHeader>
 
-      <CardContent className="pt-6 pb-2">
+      <CardContent className="pt-6 pb-2 flex-1 flex flex-col justify-center">
         <ChartContainer config={chartConfig} className="h-64 w-full">
           {chartType === "bar" ? (
-            <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+            <BarChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e8decf" />
               <XAxis
                 dataKey="month"
@@ -91,7 +127,7 @@ export function RevenueBarChart() {
                 axisLine={false}
                 tickLine={false}
                 className="text-[10px] fill-[#7f5e35]"
-                tickFormatter={(value) => `$${value / 1000}k`}
+                tickFormatter={(value) => `$${value >= 1000 ? (value / 1000).toFixed(0) + 'k' : value}`}
               />
               <ChartTooltip content={<ChartTooltipContent indicator="dot" />} />
               <Bar
@@ -102,7 +138,7 @@ export function RevenueBarChart() {
               />
             </BarChart>
           ) : (
-            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#713105" stopOpacity={0.4} />
@@ -121,7 +157,7 @@ export function RevenueBarChart() {
                 axisLine={false}
                 tickLine={false}
                 className="text-[10px] fill-[#7f5e35]"
-                tickFormatter={(value) => `$${value / 1000}k`}
+                tickFormatter={(value) => `$${value >= 1000 ? (value / 1000).toFixed(0) + 'k' : value}`}
               />
               <ChartTooltip content={<ChartTooltipContent indicator="dot" />} />
               <Area

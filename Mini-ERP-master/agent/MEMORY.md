@@ -2,61 +2,80 @@
 
 ## 1. Project Overview
 * **Project Name:** Mini-ERP Web System (`mini-erp-app`)
-* **Tech Stack:** Next.js (App Router), React 19, TypeScript, Tailwind CSS v4, shadcn/ui primitives, Recharts, Lucide Icons.
-* **Workspace Location:** `c:\Users\ADMIN\Desktop\Folder1\mini-erp-app`
+* **Business Domain:** Luxury Furniture & Interior Living Enterprise Operations
+* **Repository:** `https://github.com/johnmichaelangelolalisna4-beep/mini-erp.git` (branch: `master`)
+* **Workspace Path:** `c:\Users\Acer\Downloads\Mini-ERP-master (2)\Mini-ERP-master`
+* **Tech Stack:** Next.js 16.3.0 (App Router), React 19, TypeScript 5, Supabase (`@supabase/supabase-js`, `@supabase/ssr`), Tailwind CSS v4, shadcn/ui primitives, Recharts, Lucide Icons.
+* **Database & Auth:** Supabase (`https://qaodmynygehskbxsouvs.supabase.co`)
 
 ---
 
 ## 2. Design System Tokens (`agent/DESIGN.md`)
-All UI components strictly adhere to the warm coffee/espresso color palette:
+All UI components strictly adhere to the Warm Espresso & Timber color palette:
 * **FOAM (`#fff7e8`)**: Main app background (`bg-[#fff7e8]`), search/date input backings, toggle containers.
 * **CREMA (`#cfab71`)**: Golden accent highlights, active tags, secondary chart accents.
 * **ROAST (`#7f5e35`)**: Subtitles, metadata, secondary text headers.
 * **ESPRESSO (`#713105`)**: Primary CTA buttons, active navigation highlights, main chart bars/lines.
 * **GROUNDS (`#4f351c`)**: Dark section headings, table headers.
-* **NOIR (`#341100`)**: Page titles (*"Dashboard Overview"*), primary data values (`$124,592.00`), main text.
+* **NOIR (`#341100`)**: Page titles (*"Dashboard Overview"*), primary data values, main text.
 
 ---
 
-## 3. Triple Portal Architecture & Dedicated Route Namespaces
+## 3. Database & Supabase Authentication Architecture
 
-### A. Administrator Portal (`/admin/*`)
-Complete uniform `/admin/*` namespace for system administrators with `ADMINISTRATOR PORTAL` header badge.
-* **`/admin/dashboard`** ([app/admin/dashboard/page.tsx](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp-app/app/admin/dashboard/page.tsx)): High-level store overview with system-wide KPI cards and charts.
-* **`/admin/inventory`** ([app/admin/inventory/page.tsx](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp-app/app/admin/inventory/page.tsx)): Full Read/Write inventory management.
-* **`/admin/sales`** ([app/admin/sales/page.tsx](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp-app/app/admin/sales/page.tsx)): Transaction management and invoicing.
-* **`/admin/finance`** ([app/admin/finance/page.tsx](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp-app/app/admin/finance/page.tsx)): General ledger, revenue vs expense breakdown, tax provisions.
-* **`/admin/users`** ([app/admin/users/page.tsx](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp-app/app/admin/users/page.tsx)): User Management panel for employee registration and role assignment (`Admin`, `Sales`, `Inventory`).
-* **`/admin/logs`** ([app/admin/logs/page.tsx](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp-app/app/admin/logs/page.tsx)): Real-time Audit & System Logs.
-* **`/admin/settings`** ([app/admin/settings/page.tsx](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp-app/app/admin/settings/page.tsx)): System Settings.
+### A. Environment Configuration (`.env.local`)
+* `NEXT_PUBLIC_SUPABASE_URL`: `https://qaodmynygehskbxsouvs.supabase.co`
+* `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Supabase anon key configured
+* `SUPABASE_SERVICE_ROLE_KEY`: Supabase service role key configured
 
-### B. Sales Representative Portal (`/sales/*`)
-Dedicated top-level `/sales/*` URL namespace for sales representatives (e.g. John Miller) with `SALES REPRESENTATIVE PORTAL` header badge.
-* **`/sales/overview`** ([app/sales/overview/page.tsx](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp-app/app/sales/overview/page.tsx)): Personal sales performance, quota progress bar ($15,450 / $20,000), pending invoices count (4), orders created today (8), and total commission ($1,545).
-* **`/sales/orders`** ([app/sales/orders/page.tsx](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp-app/app/sales/orders/page.tsx)): **Full Read/Write Access** workspace for adding new sales orders, inputting customer details, selecting products, processing invoices, and modal order generation.
-* **`/sales/inventory`** ([app/sales/inventory/page.tsx](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp-app/app/sales/inventory/page.tsx)): **Read-Only Access** product lookup panel for checking stock availability and wholesale/retail pricing (**"+ Add Product" button hidden**).
+### B. SSR Client Helpers & Middleware
+* [`lib/supabase/client.ts`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/Mini-ERP-master/lib/supabase/client.ts): Browser client helper (`createBrowserClient`).
+* [`lib/supabase/server.ts`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/Mini-ERP-master/lib/supabase/server.ts): Server component & admin service role client helper.
+* [`lib/supabase/middleware.ts`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/Mini-ERP-master/lib/supabase/middleware.ts) & [`middleware.ts`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/Mini-ERP-master/middleware.ts): Next.js session refresh middleware.
 
-### C. Inventory Manager Portal (`/inventory/*`)
-Dedicated top-level `/inventory/*` URL namespace for warehouse and inventory managers with `INVENTORY MANAGER PORTAL` header badge.
-* **`/inventory/overview`** ([app/inventory/overview/page.tsx](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp-app/app/inventory/overview/page.tsx)): Macro warehouse metrics (Total Active SKUs: 482, Items Requiring Restock: 14, Out-of-Stock Items: 3, Categories Distribution).
-* **`/inventory/catalog`** ([app/inventory/catalog/page.tsx](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp-app/app/inventory/catalog/page.tsx)): **Full Read/Write Access** primary workspace for adding new SKUs, editing stock counts, updating categories, unit pricing, and uploading product images.
-* **`/inventory/low-stock`** ([app/inventory/low-stock/page.tsx](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp-app/app/inventory/low-stock/page.tsx)): Dedicated action view highlighting items below reorder levels with restock actions.
-* **`/inventory/stock-logs`** ([app/inventory/stock-logs/page.tsx](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp-app/app/inventory/stock-logs/page.tsx)): Operational log showing every stock deduction (from customer orders) and addition (from supplier shipments).
+### C. Admin Auth API Endpoints
+* **[`app/api/admin/create-user/route.ts`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/Mini-ERP-master/app/api/admin/create-user/route.ts)**: Registers employee in Supabase Authentication (`auth.users`) with `email_confirm: true` and syncs with `public.profiles`.
+* **[`app/api/admin/delete-user/route.ts`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/Mini-ERP-master/app/api/admin/delete-user/route.ts)**: Deletes user from both `auth.users` and `public.profiles`.
+* **[`supabase/admin-seed.sql`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/Mini-ERP-master/supabase/admin-seed.sql)**: SQL script to seed or update Admin accounts safely in SQL Editor.
+* **[`supabase/schema.sql`](file:///c:/Users/Acer/Downloads/Mini-ERP-master%20(2)/Mini-ERP-master/supabase/schema.sql)**: Pure idempotent DDL database schema with `DROP POLICY IF EXISTS` handling for safe re-runs.
 
 ---
 
-## 4. Key UI Fixes & Enhancements Completed
-1. **Explicit Role-Based Routing**: `/admin/*` vs. `/sales/*` vs. `/inventory/*`.
-2. **3-Way Portal Switcher**: `MainSidebar` footer features an instant 3-button role switcher (`Admin` | `Sales` | `Inventory`).
-3. **Status Pill Formatting**: Fixed status pills (`OUT OF STOCK`, `LOW STOCK`, `IN STOCK`) with `whitespace-nowrap inline-flex items-center justify-center shrink-0` in [badge.tsx](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp-app/components/ui/badge.tsx) so text never wraps onto multiple lines.
-4. **Fixed Sticky Sidebar Position**: Applied `h-screen sticky top-0 z-20` on `SidebarRail` and `MainSidebar` so sidebars stay anchored while page content scrolls.
-5. **Clean Typography & Emojis Stripped**: Professional ERP styling with clean text and no inline emojis in navigation labels.
+## 4. Portals & Application Routes
+
+### A. Root Landing & Dynamic Login Page (`app/page.tsx`)
+* **Hero Showcase**: Brand presentation with system operational badge and furniture collections showcase.
+* **Strict Dynamic Supabase Authentication**: Uses `supabase.auth.signInWithPassword()`. Validates credentials against Supabase.
+* **Database Role-Driven Routing**: Resolves role from Supabase `public.profiles` and routes employee to:
+  * `Admin` ➔ `/admin/dashboard`
+  * `Sales` ➔ `/sales/overview`
+  * `Inventory` ➔ `/inventory/overview`
+
+### B. Administrator Portal (`/admin/*`)
+* **`/admin/dashboard`**: Store overview with live Supabase KPI computations and dynamic current date.
+* **`/admin/inventory`**: Full CRUD furniture inventory with *"Add Furniture Piece"*, *"Edit Furniture Details"*, and delete actions with live status computation.
+* **`/admin/sales`**: Transaction and order management with custom styled dropdowns, piece selection, auto-calculated order total, and status toggles.
+* **`/admin/finance`**: General ledger, revenue vs expense breakdown, export reports.
+* **`/admin/users`**: Dynamic Employee Directory synced to Supabase Auth & Database.
+* **`/admin/logs`**: Real-time Audit & Stock Movement Logs.
+* **`/admin/settings`**: Showroom system configuration.
 
 ---
 
-## 5. Strict User Preferences (`agent/SKILLS.md` & `agent/AGENTS.md`)
-1. **No Auto Build**: Do NOT run `npm run build` after every file change; run only when explicitly requested by the user.
-2. **No Auto Dev Server**: Do NOT start `npm run dev` automatically; user handles local dev server.
-3. **No Auto Git Commits**: Do NOT perform git commit or push operations; user handles repository management.
-4. **Design Alignment**: Always reference `agent/DESIGN.md` for any UI implementations or styling changes.
-5. **Always Provide 3+ Options**: Provide 3 or more options whenever making suggestions or recommendations.
+## 5. Key UI Fixes & Enhancements Completed
+1. **Dynamic Navigation & Live Badges**: Centralized config in `lib/config/navigation.ts` with real-time Supabase counter badges in `lib/hooks/use-sidebar-metrics.ts`.
+2. **Hardcoded Data Removal**: 100% of static dummy mock data eliminated across charts, KPIs, finance ledgers, and user directories.
+3. **No Sticky Zeros**: Numeric inputs accept empty strings so Backspace completely clears the field.
+4. **No Browser Stepper Spinners**: Globally suppressed spin buttons on `input[type="number"]` in `app/globals.css`.
+5. **Product Edit Feature**: Full editing modal for SKU, Name, Collection, Price, Stock, and Threshold in Admin Inventory.
+6. **Auto-Calculated Order Totals**: Automatically computes and fills out `Total Amount = Unit Price × Quantity` in Create Order modal.
+7. **Custom Warm Espresso Dropdowns**: Replaced native browser select elements with custom styled interactive dropdowns.
+
+---
+
+## 6. Strict Operational Guidelines
+1. **No Auto Builds**: Do NOT run `npm run build` after file edits; only run when explicitly requested by the user.
+2. **No Auto Dev Server**: Do NOT start `npm run dev` automatically; user manages dev server.
+3. **No Auto Git Commits**: Do NOT perform git commit or push commands without explicit user instruction.
+4. **Design Alignment**: Always reference `agent/DESIGN.md` for UI component styling and color palette.
+5. **Always Provide 3+ Options**: Provide 3 or more options when suggesting solutions or recommendations.

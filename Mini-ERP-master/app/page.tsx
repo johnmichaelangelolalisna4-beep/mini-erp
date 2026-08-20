@@ -101,7 +101,7 @@ export default function LandingLoginPage() {
                 MINI-ERP
               </span>
               <span className="text-[10px] font-semibold text-[#7f5e35] uppercase tracking-wider block">
-                Enterprise Management
+                Furniture & Living Operations
               </span>
             </div>
           </div>
@@ -121,15 +121,15 @@ export default function LandingLoginPage() {
         <div className="lg:col-span-7 space-y-6">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-[#fcf3e3] border border-[#cfab71]/50 text-xs font-bold text-[#713105] uppercase tracking-wider">
             <Sparkles className="w-3.5 h-3.5" />
-            Enterprise ERP Architecture
+            Furniture & Living ERP
           </div>
 
           <h1 className="text-4xl sm:text-5xl font-bold font-serif text-[#341100] tracking-tight leading-[1.15]">
-            Unified ERP Operations for Coffee & Wholesale
+            Unified ERP Operations for Furniture & Interior Design
           </h1>
 
           <p className="text-sm sm:text-base text-[#7f5e35] font-normal leading-relaxed max-w-2xl">
-            Empower your team with specialized portals. From high-level executive analytics and finance ledgers to order processing and warehouse SKU control.
+            Streamline your furniture business from showroom sales and custom client quotes to warehouse timber stock, SKU tracking, and financial ledgers.
           </p>
 
           {/* Feature Pillars */}
@@ -138,8 +138,8 @@ export default function LandingLoginPage() {
               <div className="w-8 h-8 rounded-lg bg-[#713105] text-[#fff7e8] flex items-center justify-center">
                 <ShieldCheck className="w-4 h-4" />
               </div>
-              <h3 className="text-xs font-bold text-[#341100]">Admin Control</h3>
-              <p className="text-[11px] text-[#7f5e35]">Full store KPIs, finance ledgers, employee roles & audit trails.</p>
+              <h3 className="text-xs font-bold text-[#341100]">Admin Portal</h3>
+              <p className="text-[11px] text-[#7f5e35]">Full showroom KPIs, revenue charts, staff roles & audit trail.</p>
             </div>
 
             <div className="p-4 rounded-2xl bg-white border border-[#e8decf] shadow-2xs space-y-2">
@@ -147,15 +147,15 @@ export default function LandingLoginPage() {
                 <ShoppingBag className="w-4 h-4" />
               </div>
               <h3 className="text-xs font-bold text-[#341100]">Sales Workspace</h3>
-              <p className="text-[11px] text-[#7f5e35]">Personal sales quotas, order creation & customer invoicing.</p>
+              <p className="text-[11px] text-[#7f5e35]">Interior orders, customer invoicing & sales performance targets.</p>
             </div>
 
             <div className="p-4 rounded-2xl bg-white border border-[#e8decf] shadow-2xs space-y-2">
               <div className="w-8 h-8 rounded-lg bg-[#4f351c] text-[#fff7e8] flex items-center justify-center">
                 <Package className="w-4 h-4" />
               </div>
-              <h3 className="text-xs font-bold text-[#341100]">Inventory Hub</h3>
-              <p className="text-[11px] text-[#7f5e35]">SKU catalog management, stock reorder alerts & movement logs.</p>
+              <h3 className="text-xs font-bold text-[#341100]">Warehouse Hub</h3>
+              <p className="text-[11px] text-[#7f5e35]">Furniture SKU catalog, wood/material stock & reorder alerts.</p>
             </div>
           </div>
         </div>
@@ -166,7 +166,7 @@ export default function LandingLoginPage() {
             <CardHeader className="p-6 bg-[#fff7e8]/60 border-b border-[#e8decf] rounded-2xl">
               <div className="flex items-center justify-between">
                 <Badge className="bg-[#713105] text-[#fff7e8] text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5">
-                  Employee Sign In
+                  Staff Sign In
                 </Badge>
                 <Lock className="w-4 h-4 text-[#713105]" />
               </div>
@@ -174,7 +174,7 @@ export default function LandingLoginPage() {
                 Welcome Back
               </CardTitle>
               <p className="text-xs text-[#7f5e35]">
-                Enter your registered credentials to sign in to your portal.
+                Enter your registered employee credentials to access your portal.
               </p>
             </CardHeader>
 
@@ -258,7 +258,7 @@ export default function LandingLoginPage() {
         <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#7f5e35]">
           <div className="flex items-center gap-2">
             <CheckCircle className="w-4 h-4 text-emerald-600" />
-            <span>Mini-ERP Web System v1.0.0 — Warm Espresso Design System</span>
+            <span>Mini-ERP Furniture & Living System — Warm Espresso Palette</span>
           </div>
           <span>© 2026 Mini-ERP System. All rights reserved.</span>
         </div>

@@ -7,17 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { fetchProfiles, createProfile, updateProfileRole, deleteProfile, Profile, defaultProfiles } from "@/lib/services/admin";
+import { fetchProfiles, createProfile, updateProfileRole, deleteProfile, Profile } from "@/lib/services/admin";
 
 export function UserManagementPage() {
-  const [users, setUsers] = useState<Profile[]>(defaultProfiles);
+  const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-
 
   // New Profile Form State
   const [newProfile, setNewProfile] = useState({
@@ -36,10 +35,10 @@ export function UserManagementPage() {
     setLoading(true);
     try {
       const data = await fetchProfiles();
-      setUsers(data && data.length > 0 ? data : defaultProfiles);
+      setUsers(data || []);
     } catch (err) {
       console.error("Error loading profiles from Supabase:", err);
-      setUsers(defaultProfiles);
+      setUsers([]);
     } finally {
       setLoading(false);
     }
@@ -56,7 +55,7 @@ export function UserManagementPage() {
 
     setSubmitting(true);
 
-    const tempId = `EMP-00${users.length + 1}`;
+    const tempId = `EMP-${Math.floor(100 + Math.random() * 900)}`;
     const createdProfile: Profile = {
       id: tempId,
       full_name: newProfile.full_name,
@@ -79,8 +78,7 @@ export function UserManagementPage() {
     } catch (err) {
       console.warn("Supabase insert notice (local state updated dynamically):", err);
       showNotification(`Added "${newProfile.full_name}" to User Directory!`);
-    }
- finally {
+    } finally {
       setIsModalOpen(false);
       setNewProfile({
         full_name: "",
@@ -89,9 +87,9 @@ export function UserManagementPage() {
         role: "Sales",
       });
       setSubmitting(false);
+      loadData();
     }
   };
-
 
   // 2. DYNAMIC ROLE UPDATE (Optimistic state update + Supabase sync)
   const handleRoleChange = async (id: string, newRole: "Admin" | "Sales" | "Inventory") => {
@@ -179,7 +177,7 @@ export function UserManagementPage() {
               variant="outline"
               onClick={loadData}
               disabled={loading}
-              className="border-[#e8decf] text-[#713105] hover:bg-[#fff7e8] rounded-xl text-xs gap-1.5"
+              className="border-[#e8decf] text-[#713105] hover:bg-[#fff7e8] rounded-xl text-xs gap-1.5 cursor-pointer active:scale-95"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
               Sync DB
@@ -187,7 +185,7 @@ export function UserManagementPage() {
 
             <Button
               onClick={() => setIsModalOpen(true)}
-              className="bg-[#713105] text-[#fff7e8] hover:bg-[#4f351c] gap-2 rounded-xl text-xs font-semibold px-4 py-2"
+              className="bg-[#713105] text-[#fff7e8] hover:bg-[#4f351c] gap-2 rounded-xl text-xs font-semibold px-4 py-2 cursor-pointer active:scale-95"
             >
               <UserPlus className="w-4 h-4" />
               Register Employee
@@ -271,7 +269,13 @@ export function UserManagementPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#e8decf]/60">
-              {filteredUsers.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-xs text-[#7f5e35]">
+                    Loading staff directory from Supabase...
+                  </td>
+                </tr>
+              ) : filteredUsers.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="py-8 text-center text-xs text-[#7f5e35]">
                     No matching employees found. Click "Register Employee" to add one.
@@ -399,7 +403,6 @@ export function UserManagementPage() {
                 </div>
               </div>
 
-
               <div>
                 <label className="text-[11px] font-semibold text-[#4f351c] uppercase block mb-1">
                   Email Address *
@@ -413,7 +416,6 @@ export function UserManagementPage() {
                   className="bg-[#fff7e8] border-[#e8decf] text-xs text-[#341100] rounded-xl"
                 />
               </div>
-
 
               <div>
                 <label className="text-[11px] font-semibold text-[#4f351c] uppercase block mb-1">

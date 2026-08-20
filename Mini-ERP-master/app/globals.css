@@ -47,4 +47,14 @@ input[type="password"]::-webkit-credentials-auto-fill-button {
   height: 0 !important;
 }
 
+/* Hide browser up/down number input spin buttons globally */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none !important;
+  margin: 0 !important;
+}
 
+input[type="number"] {
+  -moz-appearance: textfield !important;
+  appearance: textfield !important;
+}

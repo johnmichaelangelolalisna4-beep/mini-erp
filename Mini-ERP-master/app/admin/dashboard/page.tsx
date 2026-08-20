@@ -6,10 +6,9 @@ import { KpiCardsSection } from "@/components/kpi-card";
 import { RevenueBarChart } from "@/components/revenue-bar-chart";
 import { CategoryPieChart } from "@/components/category-pie-chart";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { fetchDashboardKPIs } from "@/lib/services/admin";
+import { fetchDashboardKPIs, Product, Order } from "@/lib/services/admin";
 
 export default function DashboardOverviewPage() {
   const [loading, setLoading] = useState(true);
@@ -17,8 +16,10 @@ export default function DashboardOverviewPage() {
     totalSales: 0,
     totalProducts: 0,
     lowStockCount: 0,
-    activeStaffCount: 0
+    activeStaffCount: 0,
   });
+  const [products, setProducts] = useState<Product[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
 
   const loadData = async () => {
     setLoading(true);
@@ -28,8 +29,10 @@ export default function DashboardOverviewPage() {
         totalSales: data.totalSales,
         totalProducts: data.totalProducts,
         lowStockCount: data.lowStockCount,
-        activeStaffCount: data.activeStaffCount
+        activeStaffCount: data.activeStaffCount,
       });
+      setProducts(data.products || []);
+      setOrders(data.orders || []);
     } catch (err) {
       console.error("Error loading dashboard KPIs from Supabase:", err);
     } finally {
@@ -40,6 +43,12 @@ export default function DashboardOverviewPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  const currentDateFormatted = new Date().toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 
   return (
     <div className="space-y-6">
@@ -66,18 +75,14 @@ export default function DashboardOverviewPage() {
               size="sm"
               onClick={loadData}
               disabled={loading}
-              className="border-[#e8decf] text-[#713105] hover:bg-[#fff7e8] rounded-xl text-xs gap-1.5"
+              className="border-[#e8decf] text-[#713105] hover:bg-[#fff7e8] rounded-xl text-xs gap-1.5 cursor-pointer active:scale-95"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
               Refresh
             </Button>
-            <div className="relative w-44">
-              <Calendar className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#7f5e35]" />
-              <Input
-                type="text"
-                defaultValue="mm/dd/yyyy"
-                className="pl-9 bg-[#fff7e8] border-[#e8decf] text-xs font-normal text-[#7f5e35] focus:bg-white rounded-xl"
-              />
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-[#fff7e8] border border-[#e8decf] text-xs font-medium text-[#713105] rounded-xl">
+              <Calendar className="w-4 h-4 text-[#7f5e35]" />
+              <span>{currentDateFormatted}</span>
             </div>
           </div>
         </CardContent>
@@ -96,12 +101,12 @@ export default function DashboardOverviewPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         {/* Left: Revenue Analytics Bar Graph */}
         <div className="lg:col-span-7 xl:col-span-8 flex flex-col">
-          <RevenueBarChart />
+          <RevenueBarChart orders={orders} />
         </div>
 
         {/* Right: Category Distribution Donut / Pie Chart */}
         <div className="lg:col-span-5 xl:col-span-4 flex flex-col">
-          <CategoryPieChart />
+          <CategoryPieChart products={products} />
         </div>
       </div>
     </div>
