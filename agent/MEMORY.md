@@ -5,7 +5,7 @@
 * **Business Domain:** Luxury Furniture & Interior Living Enterprise Operations
 * **Repository:** `https://github.com/johnmichaelangelolalisna4-beep/mini-erp.git` (branch: `master`)
 * **Workspace Path:** `c:\Users\ADMIN\Desktop\Folder1\mini-erp\mini-erp` (Root level)
-* **Tech Stack:** Next.js 16.3.0 (App Router, Turbopack), React 19, TypeScript 5, Supabase (`@supabase/supabase-js`, `@supabase/ssr`), Tailwind CSS v4, shadcn/ui primitives, Recharts, Lucide Icons.
+* **Tech Stack:** Next.js 16.3.0 (App Router, Turbopack), React 19, TypeScript 5, Supabase (`@supabase/supabase-js`, `@supabase/ssr`), Tailwind CSS v4, shadcn/ui primitives, Recharts, Lucide Icons, Google Gemini AI (`gemini-3.5-flash-lite`).
 * **Database & Auth:** Supabase (`https://qaodmynygehskbxsouvs.supabase.co`)
 
 ---
@@ -23,84 +23,90 @@ All UI components strictly adhere to the Warm Espresso & Timber color palette:
 
 ---
 
-## 3. Database & Supabase Authentication Architecture
+## 3. Database, Realtime & Supabase Architecture
 
 ### A. Environment Configuration (`.env.local`)
 * `NEXT_PUBLIC_SUPABASE_URL`: `https://qaodmynygehskbxsouvs.supabase.co`
 * `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Supabase anon key configured
 * `SUPABASE_SERVICE_ROLE_KEY`: Supabase service role key configured
+* `GEMINI_API_KEY`: Google Gemini API Key configured
+* `GEMINI_MODEL`: `gemini-3.5-flash-lite`
 
 ### B. SSR Client Helpers & Proxy
 * [`lib/supabase/client.ts`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/mini-erp/lib/supabase/client.ts): Browser client helper (`createBrowserClient`).
-* [`lib/supabase/server.ts`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/mini-erp/lib/supabase/server.ts): Server component & admin service role client helper.
+* [`lib/supabase/server.ts`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/mini-erp/lib/supabase/server.ts): Server component & admin service role client helper (`createAdminClient`).
 * [`lib/supabase/proxy.ts`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/mini-erp/lib/supabase/proxy.ts) & [`proxy.ts`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/mini-erp/proxy.ts): Next.js session refresh proxy (Next.js 16+ convention).
 
-### C. Admin Auth API Endpoints
-* **[`app/api/admin/create-user/route.ts`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/mini-erp/app/api/admin/create-user/route.ts)**: Registers employee in Supabase Authentication (`auth.users`) with `email_confirm: true` and syncs with `public.profiles`.
-* **[`app/api/admin/delete-user/route.ts`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/mini-erp/app/api/admin/delete-user/route.ts)**: Deletes user from both `auth.users` and `public.profiles`.
-* **[`supabase/admin-seed.sql`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/mini-erp/supabase/admin-seed.sql)**: SQL script to seed or update Admin accounts safely in SQL Editor.
-* **[`supabase/schema.sql`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/mini-erp/supabase/schema.sql)**: Pure idempotent DDL database schema with `DROP POLICY IF EXISTS` handling for safe re-runs.
+### C. Native Realtime WebSocket Sync (`supabase_realtime`)
+* **Publication Setup (`supabase/schema.sql`)**: Core tables published to `supabase_realtime` (`orders`, `products`, `order_items`, `stock_logs`, `profiles`).
+* **Live Sidebar Notification Badges ([`lib/hooks/use-sidebar-metrics.ts`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/mini-erp/lib/hooks/use-sidebar-metrics.ts))**: Subscribes to live database changes with unique channel IDs to update `1 PENDING`, `4 STAFF`, and low-stock count badges in `<50ms` across all open tabs.
+* **Live Portals Sync**: Admin Dashboard, Admin Inventory, Sales Performance, Warehouse Catalog, Showroom Inventory, and Sales Orders update in real-time without page reload.
+
+### D. Automated Real-Time Stock Deduction & Auto-Restoration
+* **Order Placement (`deductProductStock`)**: Deducting items immediately updates `products.stock_count`, transitions status (`IN STOCK` ➔ `LOW STOCK` ➔ `OUT OF STOCK`), and writes a `DEDUCTION` entry to `stock_logs`.
+* **Order Cancellation & Deletion (`restoreProductStock`)**: Automatically restores reserved units to warehouse inventory, recalculates `IN STOCK` status, and logs an `ADDITION` restoration entry.
+
+### E. Dual-Sync Employee Role Switching & Database-First Login
+* **Server API Route ([`app/api/admin/update-role/route.ts`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/mini-erp/app/api/admin/update-role/route.ts))**: Uses `createAdminClient()` (Service Role) to simultaneously update `public.profiles` (`role` column) and `auth.users` encrypted session metadata (`auth.admin.updateUserById`).
+* **Database-First Login ([`app/page.tsx`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/mini-erp/app/page.tsx))**: Prioritizes live database `profiles` table lookup on sign-in, instantly routing switched employees to their newly assigned portal (`Admin` ➔ `/admin/dashboard`, `Sales` ➔ `/sales/overview`, `Inventory` ➔ `/inventory/overview`).
 
 ---
 
-## 4. Portals & Application Routes
+## 4. AI Chatbot Architecture & Capabilities
 
-### A. Root Landing & Dynamic Login Page (`app/page.tsx`)
-* **Hero Showcase**: Brand presentation with system operational badge and furniture collections showcase.
-* **Strict Dynamic Supabase Authentication**: Uses `supabase.auth.signInWithPassword()`. Validates credentials against Supabase.
-* **Interactive Loading State**: Spinning Lucide `Loader2` indicator and disabled input fields during authentication.
-* **Database Role-Driven Routing**: Resolves role from Supabase `public.profiles` and routes employee to:
-  * `Admin` ➔ `/admin/dashboard`
-  * `Sales` ➔ `/sales/overview`
-  * `Inventory` ➔ `/inventory/overview`
+### A. Core Engine & Role-Based Access Control (RBAC)
+* **Model**: Exclusively powered by `gemini-3.5-flash-lite`.
+* **Executive Brevity**: Responds directly in 1–3 punchy sentences with bold highlights (**₱2,400.00**, **5 units**, **COMPLETED**). No conversational filler phrases.
+* **Admin Full Access Persona (`ADMIN_TOOLS`)**: Access to enterprise financials, system audit logs, employee directory, catalog lookups, and stock adjustment proposals.
+* **Sales-Designated Persona (`SALES_TOOLS` & `SALES_SYSTEM_PROMPT`)**: Mounted in `SalesLayout` (`role="Sales"`). Strictly scoped to showroom commerce: Retail & Wholesale pricing lookups, customer order tracking, showroom stock checks, and personal sales quota & 10% commission calculations. Guardrails block access to enterprise ledgers, system audit logs, and staff management.
+* **Thought Signature & Tool Response Handling**: Multi-turn tool execution preserves raw model `thought_signature` tokens and returns results under `role: "user"` per Gemini REST specifications.
 
-### B. Administrator Portal (`/admin/*`)
-* **`/admin/dashboard`**: Store overview with live Supabase KPI computations, shimmering card skeletons, and dynamic current date.
-* **`/admin/inventory`**: Full CRUD furniture inventory with *"Add Furniture Piece"*, *"Edit Furniture Details"*, `ConfirmDialog` SKU deletion, and `TableSkeleton`.
-* **`/admin/sales`**: Transaction and order management with `CustomSelect`, piece selection, auto-calculated order total, status toggles, and `TableSkeleton`.
-* **`/admin/finance`**: General ledger, revenue vs expense breakdown, multi-sheet Excel exports, and `TableSkeleton`.
-* **`/admin/users`**: Dynamic Employee Directory synced to Supabase Auth & Database with role modification and `ConfirmDialog` account removals.
+### B. Interactive Human-in-the-Loop Stock Actions (Admin Only)
+* **Proposal Flow**: Asking to add or deduct stock calls `prepare_stock_adjustment` to calculate stock progression (`Current: 15 ➔ New: 35 units`).
+* **In-Chat Confirmation Card ([`components/ui/action-confirmation-card.tsx`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/mini-erp/components/ui/action-confirmation-card.tsx))**: Renders directly inside the chat message with **[Confirm & Apply Stock]** and **[Cancel]** buttons.
+* **Execution & Logging**: Mutates `products.stock_count` & `status`, writes a `stock_logs` audit row, and invalidates client-side caches.
+
+---
+
+## 5. Portals & Application Routes
+
+### A. Administrator Portal (`/admin/*`)
+* **`/admin/dashboard`**: Live KPI cards, Monthly Enterprise Sales Quota progress card with `[ Adjust Target Quota ]` modal, Revenue Analytics bar chart, and Category Sales Distribution donut chart.
+* **`/admin/inventory`**: Full CRUD furniture inventory with Segmented Table / Grid switcher, responsive Luxury Gallery Cards, 1080p image uploads, and `ConfirmDialog` SKU deletion.
+* **`/admin/sales`**: Transaction and order management with 100% Clip-Proof React Portal Status Badge (`OrderStatusPill`), automated stock deduction, clean reference Sales Order Invoice Modal with separate Print & PDF Download buttons.
+* **`/admin/finance`**: General ledger, COGS / procurement restock expense tracking, dynamic running balances, revenue vs expense breakdown, multi-sheet Excel exports, and `TableSkeleton`.
+* **`/admin/users`**: Dynamic Employee Directory synced via server dual-sync API (`/api/admin/update-role`) with role modification and `ConfirmDialog` account removals.
 * **`/admin/logs`**: Real-time Unified Audit & Stock Movement Logs with Excel export.
 * **`/admin/settings`**: Showroom system configuration.
 
-### C. Inventory Portal (`/inventory/*`)
-* **`/inventory/overview`**: Live inventory KPIs, stock level distribution charts, low stock alerts, and quick actions.
-* **`/inventory/catalog`**: Live catalog CRUD with `CustomSelect` category filtering, `ConfirmDialog` deletion, and `TableSkeleton`.
-* **`/inventory/low-stock`**: Live replenishment intake modal with auto stock log addition and safety threshold indicators.
+### B. Inventory Portal (`/inventory/*`)
+* **`/inventory/overview`**: Live inventory KPIs, Category Sales Distribution, low stock alerts, and quick replenishment actions.
+* **`/inventory/catalog`**: Live catalog CRUD with Table/Grid view switcher, `CustomSelect` category filtering, and `ConfirmDialog` deletion.
+* **`/inventory/low-stock`**: Live replenishment intake with clean dual-action stock shift logging.
 * **`/inventory/stock-logs`**: Real-time stock movement ledger with movement type filtering (`ADDITION` / `DEDUCTION`) and Excel export.
 
-### D. Sales Portal (`/sales/*`)
-* **`/sales/overview`**: Personal performance KPIs, commission calculations, recent order history, and quick order creation.
-* **`/sales/orders`**: Sales order management with status workflow.
-* **`/sales/inventory`**: Read-only real-time catalog stock lookup with category filters and stock availability badges.
+### C. Sales Portal (`/sales/*`)
+* **`/sales/overview`**: Personal performance KPIs, customizable Monthly Sales Quota with preset chips (`₱20k`, `₱50k`, `₱100k`, `₱250k`) & custom amount input, 10% earned commission calculations, and recent order history.
+* **`/sales/orders`**: Sales order management with `created_by_role: "Sales"`, automatic `Sales Representative` • `Showroom Commerce` invoice branding, and status workflow.
+* **`/sales/inventory`**: Real-time showroom catalog with Table/Grid switcher, dual pricing (Retail & Wholesale), and 1-Click Fast Showroom Ordering (`[ 🛍️ Sell Piece ]`) with real-time stock deduction.
 
 ---
 
-## 5. UI Architecture & Custom Components
-
-### A. Custom Dropdown Primitive ([`components/ui/custom-select.tsx`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/mini-erp/components/ui/custom-select.tsx))
-* Replaced 100% of native `<select>` tags across all modules.
-* Floating menu styled with FOAM background, CREMA focus rings, checkmark active states, `max-h-52 overflow-y-auto` scroll container, and click-outside listeners.
-* Modal containers kept `overflow-visible relative` so dropdowns float seamlessly without boundary clipping.
-
-### B. Warm Espresso Confirmation Dialog ([`components/ui/confirm-dialog.tsx`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/mini-erp/components/ui/confirm-dialog.tsx))
-* Replaced 100% of native `window.confirm()` browser popups across SKU, catalog piece, and employee deletions.
-* Modal backdrop blur, Lucide `Trash2` / `AlertTriangle` icons, warm red destructive buttons, and Warm Espresso outline cancel buttons.
-
-### C. Skeleton Loading System ([`components/ui/skeleton.tsx`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/mini-erp/components/ui/skeleton.tsx))
-* `Skeleton`: Base animated pulse shimmer component (`bg-[#e8decf]/60 animate-pulse rounded-xl`).
-* `TableSkeleton`: Configurable multi-row and multi-column shimmering table rows replacing raw text loaders across all 10 platform tables.
-* `CardSkeleton`: Shimmering placeholder for dashboard metric cards.
-* Submit buttons feature spinning Lucide `Loader2` icons and input locking during mutations to prevent duplicate submissions.
-
-### D. Green (Success) & Red (Error) Toast Notifications ([`components/ui/toast-notification.tsx`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/mini-erp/components/ui/toast-notification.tsx))
-* Replaced 100% of native `window.alert()` calls and static notification banners.
-* **Green (Success) Toast**: `bg-emerald-50 border-emerald-300 text-emerald-950` with Lucide `CheckCircle2`, custom title/message, 4-second auto-dismiss, and manual `X` button.
-* **Red (Error) Toast**: `bg-red-50 border-red-300 text-red-950` with Lucide `AlertCircle`, custom error message, 4-second auto-dismiss, and manual `X` button.
+## 6. UI Primitives & Custom Components
+* **`OrderStatusPill` ([`app/admin/sales/page.tsx`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/mini-erp/app/admin/sales/page.tsx))**: 100% Clip-Proof React Portal Status Badge Dropdown rendered via `createPortal` to `document.body` with dynamic bounding client rect positioning.
+* **Clean Reference Invoice Modal ([`app/admin/sales/page.tsx`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/mini-erp/app/admin/sales/page.tsx))**: Sales Order invoice modal matching reference layout with 4-column metadata card, clean line-item breakdown, terms & conditions, subtotal/tax/grand total breakdown, and separate `[ Print Invoice ]` and `[ Download PDF ]` buttons.
+* **Interactive Quota Customizer Modal**: Warm Espresso modal with quick preset chips and custom numeric input on both `/sales/overview` and `/admin/dashboard`, sharing synchronized `localStorage` state.
+* **Category Sales Distribution Donut Chart ([`components/category-pie-chart.tsx`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/mini-erp/components/category-pie-chart.tsx))**: Array-safe unpacking and multi-layer category resolution with distinct Warm Espresso palette slice colors per collection.
+* **Main Sidebar ([`components/main-sidebar.tsx`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/mini-erp/components/main-sidebar.tsx))**: Widened to `w-72` (288px) with full label visibility for badges (`Low Stock & Restock` with `1 ALERT`).
+* **Table & Grid View Switcher**: Segmented toggle with `List` and `LayoutGrid` icons and responsive Luxury Product Gallery Cards across all inventory portals.
+* **`CustomSelect` ([`components/ui/custom-select.tsx`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/mini-erp/components/ui/custom-select.tsx))**: Warm Espresso floating dropdown primitive.
+* **`ConfirmDialog` ([`components/ui/confirm-dialog.tsx`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/mini-erp/components/ui/confirm-dialog.tsx))**: Warm Espresso modal dialog for destructive confirmation.
+* **`Skeleton` & `TableSkeleton` ([`components/ui/skeleton.tsx`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/mini-erp/components/ui/skeleton.tsx))**: Shimmering animated placeholders across all platform tables and metric cards.
+* **`ToastNotification` ([`components/ui/toast-notification.tsx`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/mini-erp/components/ui/toast-notification.tsx))**: Emerald success and Red error toast notification system accepting `toast={toast}`.
 
 ---
 
-## 6. Strict Operational Guidelines
+## 7. Strict Operational Guidelines
 1. **No Auto Builds**: Do NOT run `npm run build` after file edits; only run when explicitly requested by the user.
 2. **No Auto Dev Server**: Do NOT start `npm run dev` automatically; user manages dev server in their terminal.
 3. **No Auto Git Commits**: Do NOT perform git commit or push commands without explicit user instruction.

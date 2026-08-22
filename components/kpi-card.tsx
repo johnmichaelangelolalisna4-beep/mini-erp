@@ -22,8 +22,8 @@ export function KpiCardsSection({
   loading = false
 }: KpiDataProps) {
   const formatCurrency = (val?: number) => {
-    if (val === undefined) return "$124,592.00";
-    return `$${val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    if (val === undefined) return "₱124,592.00";
+    return `₱${val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   const kpis = [

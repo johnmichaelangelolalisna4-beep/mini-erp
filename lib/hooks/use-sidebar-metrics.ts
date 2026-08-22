@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { SidebarMetrics } from "@/lib/config/navigation";
-import { fetchWithCache, getCacheData } from "@/lib/services/cache";
+import { fetchWithCache, getCacheData, invalidateCache } from "@/lib/services/cache";
 
 const CACHE_KEY = "sidebar_metrics";
 const CACHE_TTL_MS = 30000; // 30 seconds
@@ -12,11 +12,13 @@ export function useSidebarMetrics() {
   // Initialize immediately from in-memory cache if available (0ms instant render)
   const [metrics, setMetrics] = useState<SidebarMetrics>(() => {
     const cached = getCacheData<SidebarMetrics>(CACHE_KEY);
-    return cached || {
-      lowStock: 0,
-      pendingOrders: 0,
-      activeStaff: 0,
-    };
+    return (
+      cached || {
+        lowStock: 0,
+        pendingOrders: 0,
+        activeStaff: 0,
+      }
+    );
   });
   const [loading, setLoading] = useState<boolean>(() => !getCacheData<SidebarMetrics>(CACHE_KEY));
 
@@ -61,8 +63,42 @@ export function useSidebarMetrics() {
 
   useEffect(() => {
     fetchMetrics();
+
+    // Supabase Realtime WebSocket subscription for live sidebar badges
+    const supabase = createClient();
+    const channelName = `sidebar-metrics-${Math.random().toString(36).substring(2, 9)}`;
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders" },
+        () => {
+          invalidateCache(CACHE_KEY);
+          fetchMetrics();
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "products" },
+        () => {
+          invalidateCache(CACHE_KEY);
+          fetchMetrics();
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "profiles" },
+        () => {
+          invalidateCache(CACHE_KEY);
+          fetchMetrics();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [fetchMetrics]);
 
   return { metrics, loading, refreshMetrics: fetchMetrics };
 }
-

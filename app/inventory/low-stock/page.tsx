@@ -247,7 +247,7 @@ export function LowStockRestockPage() {
                       {item.reorder_level} units
                     </td>
                     <td className="py-3.5 px-4 font-bold text-[#713105]">
-                      ${Number(item.unit_price).toFixed(2)}
+                      ₱{Number(item.unit_price).toFixed(2)}
                     </td>
                     <td className="py-3.5 px-4 whitespace-nowrap">
                       {item.stock_count === 0 ? (

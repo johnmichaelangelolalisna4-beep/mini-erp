@@ -101,16 +101,16 @@ export async function exportFinanceSummaryReport(options: ExportReportOptions = 
     ['Database Source:', 'Supabase Live Production Database'],
     [],
     ['KEY PERFORMANCE INDICATORS', 'AMOUNT / VALUE', 'DETAILS & DESCRIPTION'],
-    ['Gross Sales Revenue (Completed)', `$${grossRevenue.toFixed(2)}`, 'Total settled order revenue from customers'],
-    ['Total Operating & Restock Cost', `$${totalExpenses.toFixed(2)}`, 'Supplier procurement and wholesale fulfillment expenses'],
-    ['Net Operating Profit Margin', `$${netProfit.toFixed(2)}`, 'Net profit before tax provisions (Revenue - Expenses)'],
-    ['Estimated Tax Provision (15%)', `$${estimatedTax.toFixed(2)}`, 'Estimated corporate tax allocation at default 15% rate'],
+    ['Gross Sales Revenue (Completed)', `₱${grossRevenue.toFixed(2)}`, 'Total settled order revenue from customers'],
+    ['Total Operating & Restock Cost', `₱${totalExpenses.toFixed(2)}`, 'Supplier procurement and wholesale fulfillment expenses'],
+    ['Net Operating Profit Margin', `₱${netProfit.toFixed(2)}`, 'Net profit before tax provisions (Revenue - Expenses)'],
+    ['Estimated Tax Provision (15%)', `₱${estimatedTax.toFixed(2)}`, 'Estimated corporate tax allocation at default 15% rate'],
     ['Total Orders Placed', orders.length, 'Total customer sales orders recorded in system'],
-    ['Completed Orders Volume', `${completedOrders.length} orders ($${grossRevenue.toFixed(2)})`, 'Orders fulfilled and settled in full'],
-    ['Pending Orders Volume', `${pendingOrders.length} orders ($${pendingRevenue.toFixed(2)})`, 'Orders in queue or awaiting payment/fulfillment'],
-    ['Cancelled Orders Volume', `${cancelledOrders.length} orders ($${cancelledRevenue.toFixed(2)})`, 'Voided or cancelled transactions'],
+    ['Completed Orders Volume', `${completedOrders.length} orders (₱${grossRevenue.toFixed(2)})`, 'Orders fulfilled and settled in full'],
+    ['Pending Orders Volume', `${pendingOrders.length} orders (₱${pendingRevenue.toFixed(2)})`, 'Orders in queue or awaiting payment/fulfillment'],
+    ['Cancelled Orders Volume', `${cancelledOrders.length} orders (₱${cancelledRevenue.toFixed(2)})`, 'Voided or cancelled transactions'],
     ['Total Products in Catalog', `${products.length} SKUs`, 'Active furniture models and pieces across collections'],
-    ['Total Stock Inventory Value', `$${totalInventoryValuation.toFixed(2)}`, 'Asset valuation based on current retail unit pricing'],
+    ['Total Stock Inventory Value', `₱${totalInventoryValuation.toFixed(2)}`, 'Asset valuation based on current retail unit pricing'],
     ['Low Stock Reorder Alerts', `${lowStockProducts.length} Items`, 'Products at or below designated minimum safety levels'],
     ['Registered Staff Accounts', `${profiles.length} Users`, 'Active enterprise employee and administrator accounts'],
   ];
@@ -128,7 +128,7 @@ export async function exportFinanceSummaryReport(options: ExportReportOptions = 
     'Order Date',
     'Quantity',
     'Status',
-    'Total Amount ($)',
+    'Total Amount (₱)',
     'Created By Role',
     'System Order ID',
   ];
@@ -169,8 +169,8 @@ export async function exportFinanceSummaryReport(options: ExportReportOptions = 
     'Category',
     'Description',
     'Flow Type',
-    'Amount ($)',
-    'Running Balance ($)',
+    'Amount (₱)',
+    'Running Balance (₱)',
   ];
 
   let runningBalance = grossRevenue - totalExpenses;
@@ -189,8 +189,8 @@ export async function exportFinanceSummaryReport(options: ExportReportOptions = 
       'Sales Revenue',
       `Client Order: ${order.customer_name} (${order.status})`,
       isCancelled ? 'Expense/Refund' : 'Income',
-      `${isCancelled ? '-' : '+'}$${amountNum.toFixed(2)}`,
-      `$${runningBalance.toFixed(2)}`,
+      `${isCancelled ? '-' : '+'}₱${amountNum.toFixed(2)}`,
+      `₱${runningBalance.toFixed(2)}`,
     ]);
   });
 
@@ -207,8 +207,8 @@ export async function exportFinanceSummaryReport(options: ExportReportOptions = 
         'Inventory Restock',
         `Supplier Restock: ${log.products?.name || 'Stock In'} (${log.quantity} units)`,
         'Expense',
-        `-$${cost.toFixed(2)}`,
-        `$${runningBalance.toFixed(2)}`,
+        `-₱${cost.toFixed(2)}`,
+        `₱${runningBalance.toFixed(2)}`,
       ]);
     }
   });
@@ -232,11 +232,11 @@ export async function exportFinanceSummaryReport(options: ExportReportOptions = 
     'SKU',
     'Furniture Piece Name',
     'Collection Category',
-    'Unit Price ($)',
+    'Unit Price (₱)',
     'Stock Units',
     'Reorder Threshold',
     'Stock Status',
-    'Inventory Valuation ($)',
+    'Inventory Valuation (₱)',
   ];
 
   const inventoryRows = products.map((prod) => {
@@ -255,7 +255,7 @@ export async function exportFinanceSummaryReport(options: ExportReportOptions = 
 
   const inventorySheetData = [
     ['MINI-ERP FURNITURE INVENTORY & ASSET VALUATION'],
-    [`Total Catalog SKUs: ${products.length}`, `Total Stock Valuation: $${totalInventoryValuation.toFixed(2)}`],
+    [`Total Catalog SKUs: ${products.length}`, `Total Stock Valuation: ₱${totalInventoryValuation.toFixed(2)}`],
     [],
     inventoryHeader,
     ...inventoryRows,
@@ -272,7 +272,7 @@ export async function exportFinanceSummaryReport(options: ExportReportOptions = 
     const invoiceHeader = [
       'Invoice Number',
       'Customer Name',
-      'Amount ($)',
+      'Amount (₱)',
       'Due Date',
       'Status',
       'Created Date',
@@ -384,10 +384,10 @@ export async function exportAuditLogsReport(options: ExportReportOptions = {}) {
       isComp ? 'ORDER_COMPLETED' : isCanc ? 'ORDER_CANCELLED' : 'ORDER_CREATED',
       order.order_number || `ORD-${order.id.slice(0, 6)}`,
       `Client: ${order.customer_name}`,
-      `$${Number(order.total_amount || 0).toFixed(2)}`,
+      `₱${Number(order.total_amount || 0).toFixed(2)}`,
       order.created_by_role || 'Sales Rep',
       isComp ? 'SUCCESS' : isCanc ? 'WARNING' : 'INFO',
-      `Order for ${order.customer_name} (${order.status}). Amount: $${Number(order.total_amount || 0).toFixed(2)}`,
+      `Order for ${order.customer_name} (${order.status}). Amount: ₱${Number(order.total_amount || 0).toFixed(2)}`,
     ]);
   });
 
@@ -400,7 +400,7 @@ export async function exportAuditLogsReport(options: ExportReportOptions = {}) {
       'PRODUCT_CATALOGED',
       prod.name,
       `SKU: ${prod.sku}`,
-      `${prod.stock_count} units ($${Number(prod.unit_price || 0).toFixed(2)})`,
+      `${prod.stock_count} units (₱${Number(prod.unit_price || 0).toFixed(2)})`,
       'Inventory Admin',
       'INFO',
       `Cataloged piece "${prod.name}" in ${prod.category} collection.`,
@@ -502,7 +502,7 @@ export async function exportAuditLogsReport(options: ExportReportOptions = {}) {
     'Product Name',
     'SKU Code',
     'Quantity Changed',
-    'Unit Value ($)',
+    'Unit Value (₱)',
     'Reason / Memo',
   ];
 
@@ -537,7 +537,7 @@ export async function exportAuditLogsReport(options: ExportReportOptions = {}) {
     'Customer Name',
     'Created Date',
     'Status',
-    'Total Amount ($)',
+    'Total Amount (₱)',
     'Created By Role',
     'Order ID',
   ];

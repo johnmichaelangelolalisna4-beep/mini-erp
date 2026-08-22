@@ -4,6 +4,7 @@ import React from "react";
 import { SidebarRail } from "@/components/sidebar-rail";
 import { MainSidebar } from "@/components/main-sidebar";
 import { TopHeader } from "@/components/top-header";
+import { AIChatProvider } from "@/lib/context/ai-chat-context";
 
 export default function InventoryLayout({
   children,
@@ -11,20 +12,23 @@ export default function InventoryLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen bg-[#fff7e8] antialiased relative">
-      {/* 1. Sticky Slim Left Icon Rail */}
-      <SidebarRail />
+    <AIChatProvider>
+      <div className="flex min-h-screen bg-[#fff7e8] antialiased relative">
+        {/* 1. Sticky Slim Left Icon Rail */}
+        <SidebarRail />
 
-      {/* 2. Sticky Secondary Main Navigation Drawer */}
-      <MainSidebar />
+        {/* 2. Sticky Secondary Main Navigation Drawer */}
+        <MainSidebar />
 
-      {/* 3. Main Inventory Workspace Canvas */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <TopHeader />
-        <main className="flex-1 p-6 md:p-8 space-y-6 max-w-7xl w-full mx-auto">
-          {children}
-        </main>
+        {/* 3. Main Inventory Workspace Canvas */}
+        <div className="flex-1 flex flex-col min-w-0">
+          <TopHeader />
+          <main className="flex-1 p-6 md:p-8 space-y-6 max-w-7xl w-full mx-auto">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </AIChatProvider>
   );
 }
+

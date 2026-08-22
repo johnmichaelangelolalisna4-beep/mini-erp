@@ -79,7 +79,7 @@ export function MainSidebar() {
   };
 
   return (
-    <aside className="w-64 border-r border-[#e8decf] bg-white flex flex-col shrink-0 h-screen sticky top-0 z-20 justify-between">
+    <aside className="w-72 border-r border-[#e8decf] bg-white flex flex-col shrink-0 h-screen sticky top-0 z-20 justify-between">
       <div>
         {/* Brand Header */}
         <div className="h-16 border-b border-[#e8decf] flex items-center justify-between px-6 shrink-0">
@@ -124,7 +124,7 @@ export function MainSidebar() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-1.5">
                           <span
-                            className={`text-xs truncate ${
+                            className={`text-xs ${
                               active
                                 ? "font-bold text-[#341100]"
                                 : "font-semibold text-[#4f351c]"

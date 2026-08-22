@@ -101,13 +101,14 @@ export function UserManagementPage() {
 
   // 2. DYNAMIC ROLE UPDATE (Optimistic state update + Supabase sync)
   const handleRoleChange = async (id: string, newRole: "Admin" | "Sales" | "Inventory") => {
+    const targetUser = users.find((u) => u.id === id);
     const updatedUsers = users.map((user) =>
       user.id === id ? { ...user, role: newRole } : user
     );
     setUsers(updatedUsers);
 
     try {
-      await updateProfileRole(id, newRole);
+      await updateProfileRole(id, newRole, targetUser?.email);
       setToast({
         type: "success",
         title: "Role Updated",

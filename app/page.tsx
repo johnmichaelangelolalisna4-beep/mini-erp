@@ -44,9 +44,10 @@ export default function LandingLoginPage() {
         return;
       }
 
-      // 2. Fetch Employee's Assigned Role from Supabase Database (profiles table)
-      let userRole = data.user.user_metadata?.role;
+      // 2. Fetch Employee's Assigned Role from Supabase Database (profiles table prioritized)
+      let userRole: string | null = null;
 
+      // Primary check: Query profiles by Auth UID
       const { data: profile } = await supabase
         .from("profiles")
         .select("role")
@@ -56,7 +57,7 @@ export default function LandingLoginPage() {
       if (profile?.role) {
         userRole = profile.role;
       } else {
-        // Check by email as fallback in profiles table
+        // Secondary check: Query profiles by email
         const { data: profileByEmail } = await supabase
           .from("profiles")
           .select("role")
@@ -65,6 +66,9 @@ export default function LandingLoginPage() {
 
         if (profileByEmail?.role) {
           userRole = profileByEmail.role;
+        } else {
+          // Fallback: Auth metadata
+          userRole = data.user.user_metadata?.role || "Admin";
         }
       }
 

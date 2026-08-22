@@ -4,7 +4,7 @@ import React, { useState, useMemo } from "react";
 import { PieChart, Pie, Cell } from "recharts";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart";
-import { Product } from "@/lib/services/admin";
+import { Product, Order } from "@/lib/services/admin";
 
 const PALETTE_COLORS = [
   "#713105", // ESPRESSO
@@ -18,50 +18,101 @@ const PALETTE_COLORS = [
 
 interface CategoryPieChartProps {
   products?: Product[];
+  orders?: Order[];
 }
 
-export function CategoryPieChart({ products = [] }: CategoryPieChartProps) {
+export function CategoryPieChart({ products = [], orders = [] }: CategoryPieChartProps) {
   const [activeIndex, setActiveIndex] = useState(0);
 
-  const categoryData = useMemo(() => {
-    if (!products || products.length === 0) {
-      return [
-        {
-          name: "General",
-          value: 100,
-          items: 0,
-          revenue: "$0.00",
-          color: "#cfab71",
-        },
-      ];
+  // Map product id -> category for quick lookup
+  const productCategoryMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    products.forEach((p) => {
+      if (p.id && p.category) {
+        map[p.id] = p.category;
+      }
+    });
+    return map;
+  }, [products]);
+
+  const { categoryData, totalRevenue, completedOrdersCount } = useMemo(() => {
+    const completedOrders = orders.filter((o) => o.status === "COMPLETED");
+    const totalRev = completedOrders.reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
+
+    if (completedOrders.length === 0 || totalRev === 0) {
+      // If no completed orders yet, fallback to empty/placeholder representation
+      return {
+        categoryData: [
+          {
+            name: "No Sales Yet",
+            value: 100,
+            unitsSold: 0,
+            revenueAmount: 0,
+            revenue: "₱0.00",
+            color: "#e8decf",
+          },
+        ],
+        totalRevenue: 0,
+        completedOrdersCount: 0,
+      };
     }
 
-    const map: { [cat: string]: { count: number; value: number } } = {};
-    let totalItems = 0;
+    const map: Record<string, { revenue: number; units: number }> = {};
 
-    products.forEach((p) => {
-      const cat = p.category || "Uncategorized";
-      if (!map[cat]) {
-        map[cat] = { count: 0, value: 0 };
+    completedOrders.forEach((order) => {
+      const items = order.order_items;
+
+      if (items && items.length > 0) {
+        items.forEach((item) => {
+          // Resolve category from joined product (handling both object and array representations from Supabase) or product map
+          const prod = Array.isArray(item.products) ? item.products[0] : item.products;
+          const cat =
+            prod?.category ||
+            (item.product_id ? productCategoryMap[item.product_id] : null) ||
+            "General Collection";
+
+          if (!map[cat]) {
+            map[cat] = { revenue: 0, units: 0 };
+          }
+          const itemTotal = Number(item.unit_price || 0) * Number(item.quantity || 1);
+          map[cat].revenue += itemTotal > 0 ? itemTotal : Number(order.total_amount || 0) / items.length;
+          map[cat].units += Number(item.quantity || 1);
+        });
+      } else {
+        // Direct order without nested items
+        const cat = products[0]?.category || "General Collection";
+        if (!map[cat]) {
+          map[cat] = { revenue: 0, units: 0 };
+        }
+        map[cat].revenue += Number(order.total_amount || 0);
+        map[cat].units += 1;
       }
-      map[cat].count += 1;
-      map[cat].value += Number(p.stock_count || 0) * Number(p.unit_price || 0);
-      totalItems += 1;
     });
 
     const entries = Object.entries(map).map(([name, data], idx) => {
-      const percentage = totalItems > 0 ? Math.round((data.count / totalItems) * 100) : 0;
+      const percentage = totalRev > 0 ? Math.round((data.revenue / totalRev) * 100) : 0;
       return {
         name,
         value: percentage || 1,
-        items: data.count,
-        revenue: `$${data.value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        unitsSold: data.units,
+        revenueAmount: data.revenue,
+        revenue: `₱${data.revenue.toLocaleString("en-US", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`,
         color: PALETTE_COLORS[idx % PALETTE_COLORS.length],
       };
     });
 
-    return entries;
-  }, [products]);
+    // Sort categories by highest revenue
+    entries.sort((a, b) => b.revenueAmount - a.revenueAmount);
+
+    return {
+      categoryData: entries,
+      totalRevenue: totalRev,
+      completedOrdersCount: completedOrders.length,
+    };
+  }, [orders, products, productCategoryMap]);
 
   const chartConfig: ChartConfig = useMemo(() => {
     const cfg: ChartConfig = {};
@@ -77,30 +128,35 @@ export function CategoryPieChart({ products = [] }: CategoryPieChartProps) {
   const activeData = categoryData[activeIndex] || categoryData[0] || {
     name: "Overview",
     value: 0,
-    items: 0,
-    revenue: "$0.00",
+    unitsSold: 0,
+    revenue: "₱0.00",
   };
+
+  const hasSales = totalRevenue > 0;
 
   return (
     <Card className="border-[#e8decf] shadow-xs rounded-xl flex flex-col justify-between bg-white h-full">
       <CardHeader className="pb-2 border-b border-[#e8decf] flex flex-row items-center justify-between">
         <div>
           <CardTitle className="text-sm font-semibold text-[#341100]">
-            Category Distribution
+            Category Sales Distribution
           </CardTitle>
           <p className="text-[11px] text-[#7f5e35] mt-0.5">
-            Real-time stock & catalogue distribution
+            Real-time revenue by furniture category
           </p>
         </div>
         <span className="text-[11px] font-semibold text-[#713105] bg-[#fff7e8] border border-[#cfab71]/40 px-2 py-0.5 rounded-md">
-          {products.length} Products
+          {hasSales
+            ? `₱${totalRevenue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Sales`
+            : "0 Sales"}
         </span>
       </CardHeader>
 
       <CardContent className="pt-4 pb-4 flex flex-col items-center justify-center flex-1">
-        {products.length === 0 ? (
-          <div className="py-12 text-center text-xs text-[#7f5e35]">
-            No products found. Add items to see live category breakdown.
+        {!hasSales ? (
+          <div className="py-12 text-center text-xs text-[#7f5e35] space-y-1">
+            <p className="font-semibold text-[#4f351c]">No completed sales recorded yet</p>
+            <p className="text-[11px]">Category revenue breakdown will appear once customer orders are completed.</p>
           </div>
         ) : (
           <>
@@ -172,7 +228,7 @@ export function CategoryPieChart({ products = [] }: CategoryPieChartProps) {
                           {item.name}
                         </div>
                         <div className="text-[10px] text-[#7f5e35]">
-                          {item.items} {item.items === 1 ? "product" : "products"}
+                          {item.unitsSold} {item.unitsSold === 1 ? "unit sold" : "units sold"}
                         </div>
                       </div>
                     </div>

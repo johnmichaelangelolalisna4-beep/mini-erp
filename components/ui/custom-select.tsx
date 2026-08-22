@@ -19,6 +19,7 @@ export interface CustomSelectProps<T extends string = string> {
   className?: string;
   menuClassName?: string;
   disabled?: boolean;
+  placement?: "bottom" | "top";
 }
 
 export function CustomSelect<T extends string = string>({
@@ -29,6 +30,7 @@ export function CustomSelect<T extends string = string>({
   className,
   menuClassName,
   disabled = false,
+  placement = "bottom",
 }: CustomSelectProps<T>) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -76,7 +78,8 @@ export function CustomSelect<T extends string = string>({
       {isOpen && (
         <div
           className={cn(
-            "absolute left-0 right-0 mt-1.5 w-full min-w-[140px] max-h-52 overflow-y-auto rounded-xl bg-white border border-[#e8decf] shadow-xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100",
+            "absolute left-0 right-0 w-full min-w-[140px] max-h-52 overflow-y-auto rounded-xl bg-white border border-[#e8decf] shadow-xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100",
+            placement === "top" ? "bottom-full mb-1.5" : "top-full mt-1.5",
             menuClassName
           )}
         >

@@ -9,7 +9,7 @@ import { CustomSelect } from "@/components/ui/custom-select";
 
 export function SettingsPage() {
   const [isSaved, setIsSaved] = useState(false);
-  const [currency, setCurrency] = useState("USD");
+  const [currency, setCurrency] = useState("PHP");
   const [fiscalMonth, setFiscalMonth] = useState("January");
 
   const handleSave = (e: React.FormEvent) => {
@@ -114,9 +114,9 @@ export function SettingsPage() {
                     value={currency}
                     onChange={setCurrency}
                     options={[
+                      { value: "PHP", label: "PHP (₱) - Philippine Peso" },
                       { value: "USD", label: "USD ($) - US Dollar" },
                       { value: "EUR", label: "EUR (€) - Euro" },
-                      { value: "PHP", label: "PHP (₱) - Philippine Peso" },
                     ]}
                     className="h-9 text-xs"
                   />

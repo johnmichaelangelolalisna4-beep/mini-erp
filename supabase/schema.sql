@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS public.products (
     category TEXT NOT NULL,
     stock_count INT NOT NULL DEFAULT 0,
     unit_price NUMERIC(10,2) NOT NULL DEFAULT 0.00,
+    wholesale_price NUMERIC(10,2) NOT NULL DEFAULT 0.00,
     reorder_level INT NOT NULL DEFAULT 10,
     status TEXT NOT NULL DEFAULT 'IN STOCK',
     image_url TEXT,
@@ -152,4 +153,77 @@ CREATE INDEX IF NOT EXISTS idx_stock_logs_product_id ON public.stock_logs(produc
 CREATE INDEX IF NOT EXISTS idx_invoices_status_created ON public.invoices(status, created_at DESC);
 
 -- Profiles: Fast role lookup and staff count
-CREATE INDEX IF NOT EXISTS idx_profiles_role ON public.profiles(role);
+CREATE INDEX IF NOT EXISTS idx_profiles_role ON public.profiles(role);
+
+-- ========================================================
+-- 9. SUPABASE STORAGE BUCKET CONFIGURATION
+-- ========================================================
+
+-- Create 'products' public storage bucket if not already created
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('products', 'products', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
+-- Public Storage Access Policies
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'Public Access for Products Bucket'
+    ) THEN
+        CREATE POLICY "Public Access for Products Bucket" ON storage.objects FOR SELECT USING (bucket_id = 'products');
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'Allow Uploads to Products Bucket'
+    ) THEN
+        CREATE POLICY "Allow Uploads to Products Bucket" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'products');
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'Allow Updates to Products Bucket'
+    ) THEN
+        CREATE POLICY "Allow Updates to Products Bucket" ON storage.objects FOR UPDATE USING (bucket_id = 'products');
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'Allow Deletes from Products Bucket'
+    ) THEN
+        CREATE POLICY "Allow Deletes from Products Bucket" ON storage.objects FOR DELETE USING (bucket_id = 'products');
+    END IF;
+END $$;
+
+-- ========================================================
+-- 10. SUPABASE REALTIME WEBSOCKET REPLICATION
+-- ========================================================
+
+-- Enable Realtime events for tables so UI updates automatically without manual refresh
+DO $$
+BEGIN
+    -- Enable replication for orders, products, order_items, stock_logs, profiles
+    BEGIN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.orders;
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+
+    BEGIN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.products;
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+
+    BEGIN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.order_items;
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+
+    BEGIN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.stock_logs;
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+
+    BEGIN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+END $$;
+
+

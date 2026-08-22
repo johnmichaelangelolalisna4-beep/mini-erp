@@ -16,7 +16,7 @@ import { Order } from "@/lib/services/admin";
 
 const chartConfig: ChartConfig = {
   revenue: {
-    label: "Revenue ($)",
+    label: "Revenue (₱)",
     color: "#713105", // ESPRESSO
   },
   orders: {
@@ -77,7 +77,7 @@ export function RevenueBarChart({ orders = [] }: RevenueBarChartProps) {
             Revenue Analytics
           </CardTitle>
           <span className="text-[11px] text-[#7f5e35]">
-            Total Trailing 6M: <strong className="text-[#713105] font-bold">${totalChartRevenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong>
+            Total Trailing 6M: <strong className="text-[#713105] font-bold">₱{totalChartRevenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong>
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -127,7 +127,7 @@ export function RevenueBarChart({ orders = [] }: RevenueBarChartProps) {
                 axisLine={false}
                 tickLine={false}
                 className="text-[10px] fill-[#7f5e35]"
-                tickFormatter={(value) => `$${value >= 1000 ? (value / 1000).toFixed(0) + 'k' : value}`}
+                tickFormatter={(value) => `₱${value >= 1000 ? (value / 1000).toFixed(0) + 'k' : value}`}
               />
               <ChartTooltip content={<ChartTooltipContent indicator="dot" />} />
               <Bar
@@ -157,7 +157,7 @@ export function RevenueBarChart({ orders = [] }: RevenueBarChartProps) {
                 axisLine={false}
                 tickLine={false}
                 className="text-[10px] fill-[#7f5e35]"
-                tickFormatter={(value) => `$${value >= 1000 ? (value / 1000).toFixed(0) + 'k' : value}`}
+                tickFormatter={(value) => `₱${value >= 1000 ? (value / 1000).toFixed(0) + 'k' : value}`}
               />
               <ChartTooltip content={<ChartTooltipContent indicator="dot" />} />
               <Area

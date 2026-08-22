@@ -151,7 +151,7 @@ export function FinancePage() {
             <ArrowUpRight className="w-4 h-4 text-emerald-600" />
           </div>
           <div className="text-2xl font-bold text-[#341100] mt-2">
-            ${financialData.grossRevenue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            ₱{financialData.grossRevenue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <span className="text-[11px] text-[#7f5e35] font-normal">Completed sales volume</span>
         </Card>
@@ -162,7 +162,7 @@ export function FinancePage() {
             <ArrowDownLeft className="w-4 h-4 text-red-600" />
           </div>
           <div className="text-2xl font-bold text-red-700 mt-2">
-            ${financialData.totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            ₱{financialData.totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <span className="text-[11px] text-[#7f5e35] font-normal">Restock & fulfillment cost</span>
         </Card>
@@ -173,7 +173,7 @@ export function FinancePage() {
             <Banknote className="w-4 h-4 text-[#713105]" />
           </div>
           <div className="text-2xl font-bold text-[#341100] mt-2">
-            ${financialData.netProfit.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            ₱{financialData.netProfit.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <span className="text-[11px] text-[#713105] font-semibold">Net operating margin</span>
         </Card>
@@ -184,7 +184,7 @@ export function FinancePage() {
             <PieChart className="w-4 h-4 text-[#713105]" />
           </div>
           <div className="text-2xl font-bold text-[#341100] mt-2">
-            ${financialData.estimatedTax.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            ₱{financialData.estimatedTax.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <span className="text-[11px] text-[#7f5e35] font-normal">15% Default provision</span>
         </Card>

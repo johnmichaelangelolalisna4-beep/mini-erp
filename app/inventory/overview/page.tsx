@@ -144,7 +144,7 @@ export default function StockOverviewPage() {
         </div>
 
         <div className="lg:col-span-5 flex flex-col space-y-6">
-          <CategoryPieChart products={products} />
+          <CategoryPieChart products={products} orders={orders} />
 
           {/* Quick Restock Alert Box */}
           <Card className="border-[#e8decf] bg-white rounded-xl p-5 shadow-xs">

@@ -8,6 +8,7 @@ export interface Product {
   category: string;
   stock_count: number;
   unit_price: number;
+  wholesale_price?: number;
   reorder_level: number;
   status: 'IN STOCK' | 'LOW STOCK' | 'OUT OF STOCK';
   image_url?: string;
@@ -20,7 +21,7 @@ export interface OrderItem {
   product_id?: string;
   quantity: number;
   unit_price: number;
-  products?: { name: string; sku: string };
+  products?: { name: string; sku: string; category?: string } | { name: string; sku: string; category?: string }[] | any;
 }
 
 export interface Order {
@@ -32,6 +33,8 @@ export interface Order {
   status: 'COMPLETED' | 'PENDING' | 'CANCELLED';
   created_by_role: string;
   created_at: string;
+  payment_method?: string;
+  pricing_tier?: 'RETAIL' | 'WHOLESALE';
   order_items?: OrderItem[];
 }
 
@@ -87,15 +90,15 @@ export async function fetchDashboardKPIs() {
     const supabase = createClient();
 
     const [productsRes, ordersRes, profilesRes, salesRes] = await Promise.all([
-      supabase.from('products').select('id, sku, name, category, stock_count, unit_price, reorder_level, status, image_url, created_at'),
-      supabase.from('orders').select('id, order_number, customer_name, total_amount, status, created_by_role, created_at').order('created_at', { ascending: false }),
+      supabase.from('products').select('id, sku, name, category, stock_count, unit_price, wholesale_price, reorder_level, status, image_url, created_at'),
+      supabase.from('orders').select('id, order_number, customer_name, total_amount, status, created_by_role, created_at, order_items(id, product_id, quantity, unit_price, products(name, sku, category))').order('created_at', { ascending: false }),
       supabase.from('profiles').select('id, email, full_name, role, created_at').order('created_at', { ascending: false }),
       supabase.from('orders').select('total_amount').eq('status', 'COMPLETED')
     ]);
 
-    const products: Product[] = productsRes.data || [];
-    const orders: Order[] = ordersRes.data || [];
-    const profiles: Profile[] = profilesRes.data || [];
+    const products: Product[] = (productsRes.data as unknown as Product[]) || [];
+    const orders: Order[] = (ordersRes.data as unknown as Order[]) || [];
+    const profiles: Profile[] = (profilesRes.data as unknown as Profile[]) || [];
     const completedSales = salesRes.data || [];
 
     const totalSales = completedSales.reduce((acc, curr) => acc + Number(curr.total_amount || 0), 0);
@@ -158,8 +161,8 @@ export async function fetchFinancialOverview(): Promise<FinancialOverview> {
         category: 'Sales Revenue',
         description: `Order for ${order.customer_name} (${order.status})`,
         type: order.status === 'CANCELLED' ? 'Expense' : 'Income',
-        amount: `${order.status === 'CANCELLED' ? '-' : '+'}$${Number(order.total_amount).toFixed(2)}`,
-        balance: `$${Number(runningBalance).toFixed(2)}`
+        amount: `${order.status === 'CANCELLED' ? '-' : '+'}₱${Number(order.total_amount).toFixed(2)}`,
+        balance: `₱${Number(runningBalance).toFixed(2)}`
       });
     });
 
@@ -174,8 +177,8 @@ export async function fetchFinancialOverview(): Promise<FinancialOverview> {
           category: 'Inventory Restock',
           description: `Supplier Restock: ${prod?.name || 'Stock In'} (${log.quantity} units)`,
           type: 'Expense',
-          amount: `-$${cost.toFixed(2)}`,
-          balance: `$${Number(runningBalance).toFixed(2)}`
+          amount: `-₱${cost.toFixed(2)}`,
+          balance: `₱${Number(runningBalance).toFixed(2)}`
         });
       }
     });
@@ -196,7 +199,7 @@ export async function fetchProducts(): Promise<Product[]> {
     const supabase = createClient();
     const { data, error } = await supabase
       .from('products')
-      .select('id, sku, name, category, stock_count, unit_price, reorder_level, status, image_url, created_at')
+      .select('id, sku, name, category, stock_count, unit_price, wholesale_price, reorder_level, status, image_url, created_at')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -249,7 +252,7 @@ export async function fetchOrders(): Promise<Order[]> {
     const supabase = createClient();
     const { data, error } = await supabase
       .from('orders')
-      .select('id, order_number, customer_name, total_amount, status, created_by_role, created_at, order_items(id, order_id, product_id, quantity, unit_price, products(name, sku))')
+      .select('id, order_number, customer_name, total_amount, status, created_by_role, created_at, order_items(id, order_id, product_id, quantity, unit_price, products(name, sku, category))')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -324,6 +327,118 @@ export async function updateOrderStatus(id: string, status: 'COMPLETED' | 'PENDI
   if (error) throw error;
   invalidateRelatedCaches(['orders', 'sidebar_metrics', 'dashboard_kpis', 'audit_logs', 'financial_overview']);
   return data;
+}
+
+export async function deleteOrder(id: string) {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('orders')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+  invalidateRelatedCaches(['orders', 'sidebar_metrics', 'dashboard_kpis', 'audit_logs', 'financial_overview']);
+  return true;
+}
+
+export async function deductProductStock(productId: string, quantity: number, reason: string) {
+  const supabase = createClient();
+  
+  const { data: product, error: fetchErr } = await supabase
+    .from('products')
+    .select('id, name, stock_count, reorder_level')
+    .eq('id', productId)
+    .single();
+
+  if (fetchErr || !product) {
+    console.error('Error fetching product for stock deduction:', fetchErr);
+    return null;
+  }
+
+  const currentStock = Number(product.stock_count || 0);
+  const reorderLevel = Number(product.reorder_level || 0);
+  const newStock = Math.max(0, currentStock - quantity);
+  const newStatus =
+    newStock === 0
+      ? 'OUT OF STOCK'
+      : newStock <= reorderLevel
+      ? 'LOW STOCK'
+      : 'IN STOCK';
+
+  const { data: updatedProduct, error: updateErr } = await supabase
+    .from('products')
+    .update({
+      stock_count: newStock,
+      status: newStatus,
+    })
+    .eq('id', productId)
+    .select()
+    .single();
+
+  if (updateErr) {
+    console.error('Error updating product stock during deduction:', updateErr);
+    throw updateErr;
+  }
+
+  await createStockLog({
+    product_id: productId,
+    change_type: 'DEDUCTION',
+    quantity: quantity,
+    reason: reason || `Order fulfillment: Deducted ${quantity} units`,
+  });
+
+  invalidateRelatedCaches(['products', 'orders', 'sidebar_metrics', 'dashboard_kpis', 'audit_logs', 'financial_overview']);
+  return updatedProduct;
+}
+
+export async function restoreProductStock(productId: string, quantity: number, reason: string) {
+  const supabase = createClient();
+
+  const { data: product, error: fetchErr } = await supabase
+    .from('products')
+    .select('id, name, stock_count, reorder_level')
+    .eq('id', productId)
+    .single();
+
+  if (fetchErr || !product) {
+    console.warn('Product fetch notice during stock restoration:', fetchErr);
+    return null;
+  }
+
+  const currentStock = Number(product.stock_count || 0);
+  const reorderLevel = Number(product.reorder_level || 0);
+  const newStock = currentStock + quantity;
+  const newStatus =
+    newStock === 0
+      ? 'OUT OF STOCK'
+      : newStock <= reorderLevel
+      ? 'LOW STOCK'
+      : 'IN STOCK';
+
+  const { data: updatedProduct, error: updateErr } = await supabase
+    .from('products')
+    .update({
+      stock_count: newStock,
+      status: newStatus,
+    })
+    .eq('id', productId)
+    .select()
+    .single();
+
+  if (updateErr) {
+    console.error('Error updating product stock during restoration:', updateErr);
+    throw updateErr;
+  }
+
+  await createStockLog({
+    product_id: productId,
+    change_type: 'ADDITION',
+    quantity: quantity,
+    reason: reason || `Order restoration: Returned ${quantity} units to inventory`,
+  });
+
+  invalidateRelatedCaches(['products', 'orders', 'sidebar_metrics', 'dashboard_kpis', 'audit_logs', 'financial_overview']);
+  return updatedProduct;
 }
 
 // 5. Invoices CRUD (Cached 45s + Invalidation)
@@ -409,7 +524,22 @@ export async function createProfile(profile: Omit<Profile, 'id' | 'created_at'> 
   return createdUser;
 }
 
-export async function updateProfileRole(id: string, role: 'Admin' | 'Sales' | 'Inventory') {
+export async function updateProfileRole(id: string, role: 'Admin' | 'Sales' | 'Inventory', email?: string) {
+  try {
+    const res = await fetch('/api/admin/update-role', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, role, email }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      invalidateRelatedCaches(['profiles', 'sidebar_metrics', 'dashboard_kpis', 'audit_logs']);
+      return data.profile || data;
+    }
+  } catch (err) {
+    console.warn('API update-role fallback:', err);
+  }
+
   const supabase = createClient();
   const { data, error } = await supabase
     .from('profiles')
@@ -570,9 +700,9 @@ export async function fetchUnifiedAuditLogs(): Promise<{
         entity_name: order.order_number || `ORD-${order.id.slice(0, 6).toUpperCase()}`,
         entity_type: `Client: ${order.customer_name}`,
         actor: order.created_by_role || 'Sales Rep',
-        quantity_or_value: `$${Number(order.total_amount || 0).toFixed(2)}`,
+        quantity_or_value: `₱${Number(order.total_amount || 0).toFixed(2)}`,
         level: isCompleted ? 'SUCCESS' : isCancelled ? 'WARNING' : 'INFO',
-        description: `Order ${order.order_number} for customer "${order.customer_name}" marked as ${order.status}. Total: $${Number(order.total_amount).toFixed(2)}.`,
+        description: `Order ${order.order_number} for customer "${order.customer_name}" marked as ${order.status}. Total: ₱${Number(order.total_amount).toFixed(2)}.`,
         raw_id: order.id,
       });
     });
@@ -587,7 +717,7 @@ export async function fetchUnifiedAuditLogs(): Promise<{
         entity_name: prod.name,
         entity_type: `SKU: ${prod.sku}`,
         actor: 'Inventory Admin',
-        quantity_or_value: `${prod.stock_count} in stock ($${Number(prod.unit_price).toFixed(2)})`,
+        quantity_or_value: `${prod.stock_count} in stock (₱${Number(prod.unit_price).toFixed(2)})`,
         level: 'INFO',
         description: `Cataloged piece "${prod.name}" in "${prod.category}" collection with initial stock of ${prod.stock_count} units.`,
         raw_id: prod.id,
@@ -640,5 +770,115 @@ export async function fetchUnifiedAuditLogs(): Promise<{
       },
     };
   }, 30000);
+}
+
+/**
+ * Compresses an image to a maximum resolution of 1080p (max 1920x1080)
+ * while preserving aspect ratio and optimizing file size.
+ */
+export async function compressImageTo1080p(file: File, quality = 0.85): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const width = img.width;
+        const height = img.height;
+
+        const maxWidth = 1920;
+        const maxHeight = 1080;
+
+        let scale = 1;
+        if (width > maxWidth || height > maxHeight) {
+          const scaleWidth = maxWidth / width;
+          const scaleHeight = maxHeight / height;
+          scale = Math.min(scaleWidth, scaleHeight);
+        }
+
+        const targetWidth = Math.round(width * scale);
+        const targetHeight = Math.round(height * scale);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Canvas context not available'));
+          return;
+        }
+
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error('Image compression failed'));
+            }
+          },
+          'image/jpeg',
+          quality
+        );
+      };
+      img.onerror = () => reject(new Error('Failed to load image for compression'));
+      img.src = event.target?.result as string;
+    };
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Uploads a compressed image blob or file to Supabase Storage 'products' bucket
+ * and returns the public CDN URL. If the bucket is not found or fails, gracefully
+ * falls back to storing the compressed 1080p Base64 data URL directly.
+ */
+export async function uploadProductImage(fileOrBlob: Blob | File, originalName = 'product.jpg'): Promise<string> {
+  const supabase = createClient();
+  const sanitizedName = originalName.replace(/[^a-zA-Z0-9.-]/g, '_').toLowerCase();
+  const cleanBaseName =
+    sanitizedName.endsWith('.jpg') ||
+    sanitizedName.endsWith('.jpeg') ||
+    sanitizedName.endsWith('.png') ||
+    sanitizedName.endsWith('.webp')
+      ? sanitizedName
+      : `${sanitizedName}.jpg`;
+  const filePath = `catalog/${Date.now()}_${cleanBaseName}`;
+
+  try {
+    const { data, error } = await supabase.storage
+      .from('products')
+      .upload(filePath, fileOrBlob, {
+        contentType: fileOrBlob.type || 'image/jpeg',
+        upsert: true,
+      });
+
+    if (!error && data) {
+      const { data: publicUrlData } = supabase.storage
+        .from('products')
+        .getPublicUrl(data.path);
+
+      if (publicUrlData?.publicUrl) {
+        return publicUrlData.publicUrl;
+      }
+    } else if (error) {
+      console.warn(`Supabase Storage upload warning (${error.message}). Falling back to compressed 1080p Base64.`);
+    }
+  } catch (err: any) {
+    console.warn(`Storage exception (${err.message}). Using compressed 1080p Base64 fallback.`);
+  }
+
+  // Graceful Fallback: Convert compressed 1080p Blob to Data URL so it always saves
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      resolve(reader.result as string);
+    };
+    reader.readAsDataURL(fileOrBlob);
+  });
 }
 
