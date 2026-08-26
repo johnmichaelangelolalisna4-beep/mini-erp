@@ -34,10 +34,18 @@ export function AIChatProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+const defaultAIChatContext: AIChatContextType = {
+  isOpen: false,
+  setIsOpen: () => {},
+  toggleChat: () => {},
+  openChat: () => {},
+  closeChat: () => {},
+};
+
 export function useAIChat() {
   const context = useContext(AIChatContext);
   if (!context) {
-    throw new Error("useAIChat must be used within an AIChatProvider");
+    return defaultAIChatContext;
   }
   return context;
 }
