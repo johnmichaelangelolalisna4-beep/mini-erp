@@ -30,11 +30,13 @@ export interface StockAdjustmentAction {
 interface ActionConfirmationCardProps {
   action: StockAdjustmentAction;
   onExecuteSuccess?: (result: any) => void;
+  onSuccess?: () => void;
 }
 
 export function ActionConfirmationCard({
   action,
   onExecuteSuccess,
+  onSuccess,
 }: ActionConfirmationCardProps) {
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "cancelled" | "error">(
     action.status === "CONFIRMED"
@@ -81,6 +83,9 @@ export function ActionConfirmationCard({
       }
       if (onExecuteSuccess) {
         onExecuteSuccess(data);
+      }
+      if (onSuccess) {
+        onSuccess();
       }
     } catch (err: any) {
       console.error("Failed to execute action:", err);
