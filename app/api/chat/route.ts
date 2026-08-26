@@ -553,6 +553,8 @@ async function executeTool(name: string, args: any, role: string = "Admin") {
         const newStock = type === "ADDITION" ? currentStock + qty : currentStock - qty;
 
         const actionProposal = {
+          action_id: `act-${Date.now()}`,
+          action_type: "STOCK_ADJUSTMENT" as const,
           product_id: product.id,
           product_name: product.name,
           sku: product.sku,
@@ -561,6 +563,7 @@ async function executeTool(name: string, args: any, role: string = "Admin") {
           current_stock: currentStock,
           new_stock: newStock,
           reason: reason || `${type === "ADDITION" ? "Supplier Restock" : "Manual Stock Adjustment"} via AI Assistant`,
+          status: "PENDING_CONFIRMATION" as const,
         };
 
         return {
@@ -655,9 +658,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Prepare initial Gemini API Request with Tools
+    const activeApiKey = process.env.GEMINI_API_KEY || GEMINI_API_KEY;
+    const activeModel = process.env.GEMINI_MODEL || GEMINI_MODEL || "gemini-3.5-flash-lite";
+
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
-      GEMINI_MODEL
-    )}:generateContent?key=${GEMINI_API_KEY}`;
+      activeModel
+    )}:generateContent?key=${activeApiKey}`;
 
     const requestPayload: any = {
       contents,

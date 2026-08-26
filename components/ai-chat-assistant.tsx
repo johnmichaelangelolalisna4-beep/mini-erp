@@ -118,6 +118,14 @@ export function AIChatAssistant({ role = "Admin" }: AIChatAssistantProps) {
     }
   }, [isOpen, messages]);
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value);
+    if (inputRef.current) {
+      inputRef.current.style.height = "auto";
+      inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 96)}px`;
+    }
+  };
+
   const handleSendMessage = async (textToSend?: string) => {
     const query = (textToSend || input).trim();
     if (!query || loading) return;
@@ -132,6 +140,9 @@ export function AIChatAssistant({ role = "Admin" }: AIChatAssistantProps) {
     const newHistory = [...messages, userMessage];
     setMessages(newHistory);
     setInput("");
+    if (inputRef.current) {
+      inputRef.current.style.height = "auto";
+    }
     setLoading(true);
 
     try {
@@ -381,7 +392,7 @@ export function AIChatAssistant({ role = "Admin" }: AIChatAssistantProps) {
               <textarea
                 ref={inputRef}
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
                 placeholder={
                   role === "Sales"
@@ -389,7 +400,7 @@ export function AIChatAssistant({ role = "Admin" }: AIChatAssistantProps) {
                     : "Ask about financials, audit logs, stock counts, staff records..."
                 }
                 rows={1}
-                className="flex-1 bg-transparent border-0 resize-none text-xs text-[#341100] placeholder:text-[#7f5e35]/60 focus:outline-hidden px-2 py-1.5 max-h-24 min-h-[36px]"
+                className="flex-1 bg-transparent border-0 resize-none text-xs text-[#341100] placeholder:text-[#7f5e35]/60 focus:outline-hidden px-2 py-1.5 max-h-24 min-h-[36px] overflow-y-auto scrollbar-none"
               />
               <button
                 type="button"

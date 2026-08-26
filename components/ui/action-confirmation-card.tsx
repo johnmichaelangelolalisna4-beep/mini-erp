@@ -57,7 +57,7 @@ export function ActionConfirmationCard({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action_type: action.action_type,
+          action_type: action.action_type || "STOCK_ADJUSTMENT",
           product_id: action.product_id,
           change_type: action.change_type,
           quantity: action.quantity,

@@ -4,9 +4,9 @@ import { createAdminClient } from "@/lib/supabase/server";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { action_type, product_id, change_type, quantity, reason } = body;
+    const { action_type = "STOCK_ADJUSTMENT", product_id, change_type, quantity, reason } = body;
 
-    if (action_type !== "STOCK_ADJUSTMENT") {
+    if (action_type && action_type !== "STOCK_ADJUSTMENT") {
       return NextResponse.json({ error: "Unsupported action type" }, { status: 400 });
     }
 

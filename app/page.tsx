@@ -92,9 +92,45 @@ export default function LandingLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#fff7e8] text-[#341100] flex flex-col justify-between selection:bg-[#cfab71] selection:text-[#341100]">
+    <div className="min-h-screen bg-[#fff7e8] text-[#341100] flex flex-col justify-between selection:bg-[#cfab71] selection:text-[#341100] relative overflow-hidden">
+      {/* Background: Architectural Drafting Grid & Ambient Radial Lighting */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden select-none z-0">
+        {/* 1. Ambient Warm Lighting Orbs */}
+        <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-[#cfab71]/20 blur-3xl" />
+        <div className="absolute top-1/4 right-0 lg:right-16 w-[520px] h-[520px] rounded-full bg-[#713105]/8 blur-3xl" />
+        <div className="absolute -bottom-32 left-1/4 w-[640px] h-[360px] rounded-full bg-[#cfab71]/15 blur-3xl" />
+
+        {/* 2. Precision Architectural Drafting Grid Pattern */}
+        <div
+          className="absolute inset-0 opacity-[0.45]"
+          style={{
+            backgroundImage: `
+              linear-gradient(to right, #cfab712a 1px, transparent 1px),
+              linear-gradient(to bottom, #cfab712a 1px, transparent 1px)
+            `,
+            backgroundSize: "40px 40px",
+            maskImage: "radial-gradient(ellipse 90% 75% at 50% 45%, black 45%, transparent 95%)",
+            WebkitMaskImage: "radial-gradient(ellipse 90% 75% at 50% 45%, black 45%, transparent 95%)",
+          }}
+        />
+
+        {/* 3. Blueprint Alignment Crosshairs & Coordinates */}
+        <div className="absolute top-24 left-10 text-[#cfab71]/60 font-mono text-[10px] tracking-wider hidden lg:block">
+          + 01. LIVING & TIMBER OPERATIONS
+        </div>
+        <div className="absolute top-24 right-10 text-[#cfab71]/60 font-mono text-[10px] tracking-wider hidden lg:block">
+          GRID // 40PX +
+        </div>
+        <div className="absolute bottom-20 left-10 text-[#cfab71]/60 font-mono text-[10px] tracking-wider hidden lg:block">
+          + SHOWROOM SPEC. 2026
+        </div>
+        <div className="absolute bottom-20 right-10 text-[#cfab71]/60 font-mono text-[10px] tracking-wider hidden lg:block">
+          RBAC // REALTIME +
+        </div>
+      </div>
+
       {/* 1. Header Navigation Bar */}
-      <header className="border-b border-[#e8decf] bg-white/80 backdrop-blur-md sticky top-0 z-30">
+      <header className="border-b border-[#e8decf] bg-white/85 backdrop-blur-md sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-[#713105] text-[#fff7e8] flex items-center justify-center shadow-xs">
@@ -120,11 +156,11 @@ export default function LandingLoginPage() {
       </header>
 
       {/* 2. Hero Section & Login Form */}
-      <main className="max-w-7xl mx-auto px-6 py-12 lg:py-16 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center flex-1 w-full">
+      <main className="max-w-7xl mx-auto px-6 py-12 lg:py-16 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center flex-1 w-full relative z-10">
         {/* Left Column: Brand Showcase */}
         <div className="lg:col-span-7 space-y-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-[#fcf3e3] border border-[#cfab71]/50 text-xs font-bold text-[#713105] uppercase tracking-wider">
-            <Sparkles className="w-3.5 h-3.5" />
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-[#fcf3e3] border border-[#cfab71]/50 text-xs font-bold text-[#713105] uppercase tracking-wider shadow-2xs">
+            <Sparkles className="w-3.5 h-3.5 text-[#cfab71]" />
             Furniture & Living ERP
           </div>
 
@@ -138,7 +174,7 @@ export default function LandingLoginPage() {
 
           {/* Feature Pillars */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
-            <div className="p-4 rounded-2xl bg-white border border-[#e8decf] shadow-2xs space-y-2">
+            <div className="p-4 rounded-2xl bg-white/90 backdrop-blur-xs border border-[#e8decf] shadow-2xs space-y-2 hover:border-[#cfab71] transition-all">
               <div className="w-8 h-8 rounded-lg bg-[#713105] text-[#fff7e8] flex items-center justify-center">
                 <ShieldCheck className="w-4 h-4" />
               </div>
@@ -146,7 +182,7 @@ export default function LandingLoginPage() {
               <p className="text-[11px] text-[#7f5e35]">Full showroom KPIs, revenue charts, staff roles & audit trail.</p>
             </div>
 
-            <div className="p-4 rounded-2xl bg-white border border-[#e8decf] shadow-2xs space-y-2">
+            <div className="p-4 rounded-2xl bg-white/90 backdrop-blur-xs border border-[#e8decf] shadow-2xs space-y-2 hover:border-[#cfab71] transition-all">
               <div className="w-8 h-8 rounded-lg bg-[#cfab71] text-[#341100] flex items-center justify-center">
                 <ShoppingBag className="w-4 h-4" />
               </div>
@@ -154,7 +190,7 @@ export default function LandingLoginPage() {
               <p className="text-[11px] text-[#7f5e35]">Interior orders, customer invoicing & sales performance targets.</p>
             </div>
 
-            <div className="p-4 rounded-2xl bg-white border border-[#e8decf] shadow-2xs space-y-2">
+            <div className="p-4 rounded-2xl bg-white/90 backdrop-blur-xs border border-[#e8decf] shadow-2xs space-y-2 hover:border-[#cfab71] transition-all">
               <div className="w-8 h-8 rounded-lg bg-[#4f351c] text-[#fff7e8] flex items-center justify-center">
                 <Package className="w-4 h-4" />
               </div>
@@ -166,7 +202,7 @@ export default function LandingLoginPage() {
 
         {/* Right Column: Employee Login Card */}
         <div className="lg:col-span-5">
-          <Card className="border-[#e8decf] bg-white shadow-xl rounded-3xl overflow-hidden p-2">
+          <Card className="border-[#e8decf] bg-white/95 backdrop-blur-xs shadow-2xl shadow-[#713105]/10 rounded-3xl overflow-hidden p-2">
             <CardHeader className="p-6 bg-[#fff7e8]/60 border-b border-[#e8decf] rounded-2xl">
               <div className="flex items-center justify-between">
                 <Badge className="bg-[#713105] text-[#fff7e8] text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5">
