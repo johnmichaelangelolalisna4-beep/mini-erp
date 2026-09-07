@@ -230,8 +230,8 @@ export function AIChatAssistant({ role = "Admin" }: AIChatAssistantProps) {
       <div
         className={`fixed z-50 pointer-events-auto transition-all duration-300 flex flex-col ${
           isExpanded
-            ? "inset-3 sm:inset-8"
-            : "bottom-6 right-6 w-[380px] sm:w-[480px] h-[640px] max-h-[85vh]"
+            ? "inset-2 sm:inset-6 md:inset-8"
+            : "bottom-2 inset-x-2 sm:inset-x-auto sm:right-6 sm:bottom-6 sm:w-[460px] h-[580px] sm:h-[640px] max-h-[88vh]"
         }`}
       >
         <div className="flex flex-col h-full w-full bg-[#fff7e8] border border-[#e8decf] rounded-2xl shadow-2xl overflow-hidden transition-all duration-300 ease-in-out">

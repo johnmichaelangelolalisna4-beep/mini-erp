@@ -79,7 +79,7 @@ export function MainSidebar() {
   };
 
   return (
-    <aside className="w-72 border-r border-[#e8decf] bg-white flex flex-col shrink-0 h-screen sticky top-0 z-20 justify-between">
+    <aside className="w-72 border-r border-[#e8decf] bg-white hidden lg:flex flex-col shrink-0 h-screen sticky top-0 z-20 justify-between">
       <div>
         {/* Brand Header */}
         <div className="h-16 border-b border-[#e8decf] flex items-center justify-between px-6 shrink-0">

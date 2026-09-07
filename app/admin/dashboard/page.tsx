@@ -167,7 +167,7 @@ export default function DashboardOverviewPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <Button
               variant="outline"
               size="sm"
@@ -202,7 +202,7 @@ export default function DashboardOverviewPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5">
             <Button
               variant="outline"
               size="sm"
@@ -232,7 +232,7 @@ export default function DashboardOverviewPage() {
             style={{ width: `${clampedPercent}%` }}
           />
         </div>
-        <div className="flex justify-between text-[11px] text-[#7f5e35] mt-2 font-medium">
+        <div className="flex flex-col sm:flex-row justify-between text-[11px] text-[#7f5e35] mt-2 font-medium gap-1">
           <span>
             Realized Revenue: ₱
             {currentSales.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}

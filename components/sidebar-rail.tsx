@@ -44,7 +44,7 @@ export function SidebarRail() {
     : "/sales/overview";
 
   return (
-    <aside className="w-16 border-r border-[#e8decf] bg-white flex flex-col items-center py-4 shrink-0 justify-between h-screen sticky top-0 z-20">
+    <aside className="w-16 border-r border-[#e8decf] bg-white hidden md:flex flex-col items-center py-4 shrink-0 justify-between h-screen sticky top-0 z-20">
       <div className="flex flex-col items-center gap-6 w-full">
         {/* Top Store Badge Icon */}
         <Link

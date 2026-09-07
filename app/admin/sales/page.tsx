@@ -670,7 +670,7 @@ export function SalesPage({ userRole }: { userRole?: "Admin" | "Sales" } = {}) {
             </p>
           </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
             <div className="relative flex-1 md:w-64">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#7f5e35]" />
               <Input
@@ -682,7 +682,7 @@ export function SalesPage({ userRole }: { userRole?: "Admin" | "Sales" } = {}) {
             </div>
 
             {/* Status Filter Dropdown */}
-            <div className="w-36">
+            <div className="w-full sm:w-36">
               <CustomSelect
                 value={statusFilter}
                 onChange={(val) => setStatusFilter(val)}
@@ -1103,14 +1103,14 @@ export function SalesPage({ userRole }: { userRole?: "Admin" | "Sales" } = {}) {
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
           <div className="w-full max-w-2xl bg-white border border-[#e8decf] shadow-2xl rounded-3xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 relative my-8">
             {/* Modal Header Bar */}
-            <div className="bg-[#fff7e8] border-b border-[#e8decf] px-6 py-4 flex items-center justify-between">
+            <div className="bg-[#fff7e8] border-b border-[#e8decf] px-4 sm:px-6 py-3.5 sm:py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-[#713105]">
                 <span className="w-2.5 h-2.5 rounded-full bg-[#713105]" />
                 <span className="text-xs font-bold text-[#341100] uppercase tracking-wider">
                   SALES ORDER INVOICE PREVIEW
                 </span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
                 <Button
                   type="button"
                   onClick={handlePrintInvoice}
@@ -1139,9 +1139,9 @@ export function SalesPage({ userRole }: { userRole?: "Admin" | "Sales" } = {}) {
             </div>
 
             {/* Invoice Document Body */}
-            <div className="p-8 space-y-6 text-[#341100] bg-white">
+            <div className="p-4 sm:p-8 space-y-6 text-[#341100] bg-white">
               {/* Top Letterhead */}
-              <div className="flex items-start justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-start justify-between gap-4">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2.5">
                     <div className="w-9 h-9 rounded-xl bg-[#713105] text-[#fff7e8] flex items-center justify-center shadow-xs">
@@ -1159,7 +1159,7 @@ export function SalesPage({ userRole }: { userRole?: "Admin" | "Sales" } = {}) {
                   </p>
                 </div>
 
-                <div className="text-right space-y-1.5">
+                <div className="text-left sm:text-right space-y-1.5">
                   <div className="text-xs font-mono font-bold text-[#713105]">
                     #{invoiceOrder.order_number}
                   </div>
@@ -1190,7 +1190,7 @@ export function SalesPage({ userRole }: { userRole?: "Admin" | "Sales" } = {}) {
               <div className="h-px bg-[#e8decf]" />
 
               {/* 4-Column Metadata Card */}
-              <div className="grid grid-cols-4 gap-4 p-4 rounded-2xl bg-[#fffdfa] border border-[#e8decf] text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 rounded-2xl bg-[#fffdfa] border border-[#e8decf] text-xs">
                 <div>
                   <span className="text-[10px] font-bold text-[#7f5e35] uppercase tracking-wider block mb-1">
                     BILLED TO

@@ -1,26 +1,122 @@
-import * as XLSX from 'xlsx';
+import XLSX from 'xlsx-js-style';
 import { createClient } from '@/lib/supabase/client';
 
 export interface ExportReportOptions {
   fileNamePrefix?: string;
 }
 
+// ---------------------------------------------------------------------------
+// WARM ESPRESSO DESIGN TOKENS (RGB Hex for xlsx-js-style)
+// ---------------------------------------------------------------------------
+const PALETTE = {
+  ESPRESSO: '713105',    // Primary Brand Espresso (Title banner & primary headers)
+  GROUNDS: '4F351C',     // Dark Grounds (Category headers & secondary banners)
+  NOIR: '341100',        // Deep Noir (Primary text)
+  ROAST: '7F5E35',       // Muted Roast (Metadata, descriptions, subtitles)
+  CREMA: 'CFAB71',       // Golden Crema (Accents, highlights)
+  FOAM: 'FFF7E8',        // Warm Foam (Zebra striping / card backings)
+  FOAM_LIGHT: 'FFFDF8',  // Soft alternating row fill
+  WHITE: 'FFFFFF',       // Clean White
+  BORDER: 'E8DECF',      // Subtle cell border
+  SUCCESS_BG: 'ECFDF5',  // Completed badge background
+  SUCCESS_TXT: '065F46', // Completed badge text
+  ALERT_BG: 'FEF2F2',    // Alert background
+  ALERT_TXT: '991B1B',   // Alert text
+};
+
+const THIN_BORDER = {
+  top: { style: 'thin', color: { rgb: PALETTE.BORDER } },
+  bottom: { style: 'thin', color: { rgb: PALETTE.BORDER } },
+  left: { style: 'thin', color: { rgb: PALETTE.BORDER } },
+  right: { style: 'thin', color: { rgb: PALETTE.BORDER } },
+};
+
+// ---------------------------------------------------------------------------
+// STYLE PRESETS
+// ---------------------------------------------------------------------------
+const STYLES = {
+  titleBanner: {
+    fill: { fgColor: { rgb: PALETTE.ESPRESSO } },
+    font: { name: 'Segoe UI', sz: 14, bold: true, color: { rgb: PALETTE.WHITE } },
+    alignment: { horizontal: 'center', vertical: 'center' },
+  },
+  subtitleBanner: {
+    fill: { fgColor: { rgb: PALETTE.GROUNDS } },
+    font: { name: 'Segoe UI', sz: 10, bold: true, color: { rgb: PALETTE.CREMA } },
+    alignment: { horizontal: 'center', vertical: 'center' },
+  },
+  metaBanner: {
+    fill: { fgColor: { rgb: PALETTE.FOAM } },
+    font: { name: 'Segoe UI', sz: 9, bold: false, color: { rgb: PALETTE.ROAST } },
+    alignment: { horizontal: 'center', vertical: 'center' },
+    border: THIN_BORDER,
+  },
+  categoryHeader: {
+    fill: { fgColor: { rgb: PALETTE.GROUNDS } },
+    font: { name: 'Segoe UI', sz: 10, bold: true, color: { rgb: PALETTE.CREMA } },
+    alignment: { horizontal: 'left', vertical: 'center' },
+    border: THIN_BORDER,
+  },
+  tableHeaderLeft: {
+    fill: { fgColor: { rgb: PALETTE.ESPRESSO } },
+    font: { name: 'Segoe UI', sz: 9.5, bold: true, color: { rgb: PALETTE.WHITE } },
+    alignment: { horizontal: 'left', vertical: 'center' },
+    border: THIN_BORDER,
+  },
+  tableHeaderCenter: {
+    fill: { fgColor: { rgb: PALETTE.ESPRESSO } },
+    font: { name: 'Segoe UI', sz: 9.5, bold: true, color: { rgb: PALETTE.WHITE } },
+    alignment: { horizontal: 'center', vertical: 'center' },
+    border: THIN_BORDER,
+  },
+  tableHeaderRight: {
+    fill: { fgColor: { rgb: PALETTE.ESPRESSO } },
+    font: { name: 'Segoe UI', sz: 9.5, bold: true, color: { rgb: PALETTE.WHITE } },
+    alignment: { horizontal: 'right', vertical: 'center' },
+    border: THIN_BORDER,
+  },
+  dataLeft: (isAlt = false, bold = false) => ({
+    fill: { fgColor: { rgb: isAlt ? PALETTE.FOAM_LIGHT : PALETTE.WHITE } },
+    font: { name: 'Segoe UI', sz: 9.5, bold, color: { rgb: PALETTE.NOIR } },
+    alignment: { horizontal: 'left', vertical: 'center' },
+    border: THIN_BORDER,
+  }),
+  dataCenter: (isAlt = false, bold = false) => ({
+    fill: { fgColor: { rgb: isAlt ? PALETTE.FOAM_LIGHT : PALETTE.WHITE } },
+    font: { name: 'Segoe UI', sz: 9.5, bold, color: { rgb: PALETTE.NOIR } },
+    alignment: { horizontal: 'center', vertical: 'center' },
+    border: THIN_BORDER,
+  }),
+  dataRight: (isAlt = false, bold = false) => ({
+    fill: { fgColor: { rgb: isAlt ? PALETTE.FOAM_LIGHT : PALETTE.WHITE } },
+    font: { name: 'Segoe UI', sz: 9.5, bold, color: { rgb: PALETTE.NOIR } },
+    alignment: { horizontal: 'right', vertical: 'center' },
+    border: THIN_BORDER,
+  }),
+  dataMuted: (isAlt = false) => ({
+    fill: { fgColor: { rgb: isAlt ? PALETTE.FOAM_LIGHT : PALETTE.WHITE } },
+    font: { name: 'Segoe UI', sz: 9, bold: false, color: { rgb: PALETTE.ROAST } },
+    alignment: { horizontal: 'left', vertical: 'center' },
+    border: THIN_BORDER,
+  }),
+};
+
 /**
- * Helper to auto-calculate worksheet column widths based on cell content
+ * Applies a style object safely to a cell in a worksheet.
  */
-function fitToColumn(worksheetData: (string | number | boolean | null | undefined)[][]) {
-  const colWidths: { wch: number }[] = [];
+function applyCellStyle(sheet: any, r: number, c: number, style: any) {
+  const cellRef = XLSX.utils.encode_cell({ r, c });
+  if (!sheet[cellRef]) {
+    sheet[cellRef] = { t: 's', v: '' };
+  }
+  sheet[cellRef].s = style;
+}
 
-  worksheetData.forEach((row) => {
-    row.forEach((val, colIndex) => {
-      const cellLen = val !== null && val !== undefined ? String(val).length : 0;
-      if (!colWidths[colIndex] || cellLen > colWidths[colIndex].wch) {
-        colWidths[colIndex] = { wch: Math.max(cellLen + 3, 12) };
-      }
-    });
-  });
-
-  return colWidths;
+/**
+ * Formats a number with comma thousand separators and 2 decimals.
+ */
+function fmtCurrency(val: number): string {
+  return `₱${val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 /**
@@ -91,37 +187,127 @@ export async function exportFinanceSummaryReport(options: ExportReportOptions = 
   // 3. Create Workbook
   const workbook = XLSX.utils.book_new();
 
-  // -------------------------------------------------------------
-  // TAB 1: EXECUTIVE FINANCIAL SUMMARY
-  // -------------------------------------------------------------
+  // =========================================================================
+  // TAB 1: EXECUTIVE FINANCIAL SUMMARY (Categorized & Styled)
+  // =========================================================================
   const summarySheetData: (string | number)[][] = [
-    ['MINI-ERP LUXURY FURNITURE & INTERIOR LIVING'],
-    ['EXECUTIVE SALES & FINANCIAL SUMMARY REPORT'],
-    ['Generated On:', `${reportDateStr} at ${reportTimeStr}`],
-    ['Database Source:', 'Supabase Live Production Database'],
-    [],
-    ['KEY PERFORMANCE INDICATORS', 'AMOUNT / VALUE', 'DETAILS & DESCRIPTION'],
-    ['Gross Sales Revenue (Completed)', `₱${grossRevenue.toFixed(2)}`, 'Total settled order revenue from customers'],
-    ['Total Operating & Restock Cost', `₱${totalExpenses.toFixed(2)}`, 'Supplier procurement and wholesale fulfillment expenses'],
-    ['Net Operating Profit Margin', `₱${netProfit.toFixed(2)}`, 'Net profit before tax provisions (Revenue - Expenses)'],
-    ['Estimated Tax Provision (15%)', `₱${estimatedTax.toFixed(2)}`, 'Estimated corporate tax allocation at default 15% rate'],
-    ['Total Orders Placed', orders.length, 'Total customer sales orders recorded in system'],
-    ['Completed Orders Volume', `${completedOrders.length} orders (₱${grossRevenue.toFixed(2)})`, 'Orders fulfilled and settled in full'],
-    ['Pending Orders Volume', `${pendingOrders.length} orders (₱${pendingRevenue.toFixed(2)})`, 'Orders in queue or awaiting payment/fulfillment'],
-    ['Cancelled Orders Volume', `${cancelledOrders.length} orders (₱${cancelledRevenue.toFixed(2)})`, 'Voided or cancelled transactions'],
-    ['Total Products in Catalog', `${products.length} SKUs`, 'Active furniture models and pieces across collections'],
-    ['Total Stock Inventory Value', `₱${totalInventoryValuation.toFixed(2)}`, 'Asset valuation based on current retail unit pricing'],
-    ['Low Stock Reorder Alerts', `${lowStockProducts.length} Items`, 'Products at or below designated minimum safety levels'],
-    ['Registered Staff Accounts', `${profiles.length} Users`, 'Active enterprise employee and administrator accounts'],
+    // Row 0 (A1:C1)
+    ['MINI-ERP LUXURY FURNITURE & INTERIOR LIVING', '', ''],
+    // Row 1 (A2:C2)
+    ['EXECUTIVE SALES & FINANCIAL PERFORMANCE REPORT', '', ''],
+    // Row 2 (A3:C3)
+    [`Report Generated: ${reportDateStr} at ${reportTimeStr}  |  Database Source: Supabase Live Production Database`, '', ''],
+    // Row 3: Blank
+    ['', '', ''],
+
+    // Row 4: Section 1 Header (A5:C5)
+    ['1. FINANCIAL & CASH FLOW PERFORMANCE', '', ''],
+    // Row 5: Table Column Headers
+    ['FINANCIAL INDICATOR', 'AMOUNT / VALUE', 'DETAILS & ACCOUNTING NOTES'],
+    // Rows 6-9: Data
+    ['Gross Sales Revenue (Completed)', fmtCurrency(grossRevenue), 'Total settled client order revenue received'],
+    ['Total Operating & Restock Cost', fmtCurrency(totalExpenses), 'Supplier procurement and wholesale replenishment expenses'],
+    ['Net Operating Profit Margin', fmtCurrency(netProfit), 'Net profit before tax provisions (Gross Revenue - Expenses)'],
+    ['Estimated Corporate Tax Provision (15%)', fmtCurrency(estimatedTax), 'Estimated tax allocation at standard 15% rate'],
+    // Row 10: Blank
+    ['', '', ''],
+
+    // Row 11: Section 2 Header (A12:C12)
+    ['2. SALES ORDER VOLUME & COMMERCIAL TRANSACTIONS', '', ''],
+    // Row 12: Table Column Headers
+    ['ORDER VOLUME METRIC', 'COUNT / VALUE', 'FULFILLMENT STATUS'],
+    // Rows 13-16: Data (Fixed Row 11 right-float issue by formatting count explicitly)
+    ['Total Orders Placed', `${orders.length} ${orders.length === 1 ? 'Order' : 'Orders'}`, 'Total customer sales orders recorded in system'],
+    ['Completed Orders Volume', `${completedOrders.length} Orders (${fmtCurrency(grossRevenue)})`, 'Orders fulfilled, delivered, and settled in full'],
+    ['Pending Orders in Queue', `${pendingOrders.length} Orders (${fmtCurrency(pendingRevenue)})`, 'Orders in queue or awaiting payment/fulfillment'],
+    ['Cancelled / Voided Orders', `${cancelledOrders.length} Orders (${fmtCurrency(cancelledRevenue)})`, 'Voided transactions with restored warehouse stock'],
+    // Row 17: Blank
+    ['', '', ''],
+
+    // Row 18: Section 3 Header (A19:C19)
+    ['3. WAREHOUSE ASSETS & INVENTORY HEALTH', '', ''],
+    // Row 19: Table Column Headers
+    ['INVENTORY INDICATOR', 'STOCK STATUS', 'VALUATION & THRESHOLD'],
+    // Rows 20-22: Data
+    ['Total Products in Catalog', `${products.length} Active SKUs`, 'Active furniture models and pieces across collections'],
+    ['Total Stock Inventory Valuation', fmtCurrency(totalInventoryValuation), 'Asset valuation based on current retail unit pricing'],
+    ['Low Stock Reorder Alerts', `${lowStockProducts.length} ${lowStockProducts.length === 1 ? 'Item' : 'Items'}`, 'Products at or below designated minimum safety levels'],
+    // Row 23: Blank
+    ['', '', ''],
+
+    // Row 24: Section 4 Header (A25:C25)
+    ['4. ENTERPRISE DIRECTORY & SYSTEM HEALTH', '', ''],
+    // Row 25: Table Column Headers
+    ['SYSTEM RESOURCE', 'ACTIVE COUNT', 'OPERATIONAL STATUS'],
+    // Rows 26-27: Data
+    ['Registered Enterprise Staff Accounts', `${profiles.length} Active Users`, 'Authorized enterprise employee and administrator accounts'],
+    ['Database & WebSocket Sync', 'OPERATIONAL', 'Supabase realtime replication active across all system portals'],
   ];
 
   const summarySheet = XLSX.utils.aoa_to_sheet(summarySheetData);
-  summarySheet['!cols'] = fitToColumn(summarySheetData);
+
+  // Configure cell merges for banners and section headers
+  summarySheet['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 2 } }, // Title
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 2 } }, // Subtitle
+    { s: { r: 2, c: 0 }, e: { r: 2, c: 2 } }, // Metadata
+    { s: { r: 4, c: 0 }, e: { r: 4, c: 2 } }, // Section 1
+    { s: { r: 11, c: 0 }, e: { r: 11, c: 2 } }, // Section 2
+    { s: { r: 18, c: 0 }, e: { r: 18, c: 2 } }, // Section 3
+    { s: { r: 24, c: 0 }, e: { r: 24, c: 2 } }, // Section 4
+  ];
+
+  // Set proportional, balanced column widths
+  summarySheet['!cols'] = [
+    { wch: 40 }, // Column A: Indicator / Metric
+    { wch: 28 }, // Column B: Amount / Value
+    { wch: 56 }, // Column C: Notes / Descriptions
+  ];
+
+  // Set row heights for breathing room
+  summarySheet['!rows'] = [
+    { hpt: 30 }, // Title
+    { hpt: 20 }, // Subtitle
+    { hpt: 18 }, // Metadata
+    { hpt: 10 }, // Blank
+    { hpt: 22 }, // Section 1
+    { hpt: 20 }, // Table Header 1
+  ];
+
+  // Style Title Banner
+  for (let c = 0; c < 3; c++) applyCellStyle(summarySheet, 0, c, STYLES.titleBanner);
+  for (let c = 0; c < 3; c++) applyCellStyle(summarySheet, 1, c, STYLES.subtitleBanner);
+  for (let c = 0; c < 3; c++) applyCellStyle(summarySheet, 2, c, STYLES.metaBanner);
+
+  // Helper to style table sections
+  const styleTableBlock = (headerRowIndex: number, dataStartRow: number, rowCount: number) => {
+    // Section header
+    for (let c = 0; c < 3; c++) applyCellStyle(summarySheet, headerRowIndex - 1, c, STYLES.categoryHeader);
+    // Table column headers
+    applyCellStyle(summarySheet, headerRowIndex, 0, STYLES.tableHeaderLeft);
+    applyCellStyle(summarySheet, headerRowIndex, 1, STYLES.tableHeaderRight);
+    applyCellStyle(summarySheet, headerRowIndex, 2, STYLES.tableHeaderLeft);
+
+    // Data rows
+    for (let i = 0; i < rowCount; i++) {
+      const r = dataStartRow + i;
+      const isAlt = i % 2 === 1;
+      applyCellStyle(summarySheet, r, 0, STYLES.dataLeft(isAlt, true));
+      applyCellStyle(summarySheet, r, 1, STYLES.dataRight(isAlt, true));
+      applyCellStyle(summarySheet, r, 2, STYLES.dataMuted(isAlt));
+    }
+  };
+
+  styleTableBlock(5, 6, 4);   // Section 1: Financials
+  styleTableBlock(12, 13, 4); // Section 2: Orders
+  styleTableBlock(19, 20, 3); // Section 3: Inventory
+  styleTableBlock(25, 26, 2); // Section 4: System
+
   XLSX.utils.book_append_sheet(workbook, summarySheet, 'Executive Summary');
 
-  // -------------------------------------------------------------
+  // =========================================================================
   // TAB 2: DETAILED SALES ORDERS REPORT
-  // -------------------------------------------------------------
+  // =========================================================================
   const salesHeader = [
     'Order Number',
     'Customer Name',
@@ -143,26 +329,64 @@ export async function exportFinanceSummaryReport(options: ExportReportOptions = 
     }),
     order.quantity || 1,
     order.status || 'PENDING',
-    Number(order.total_amount || 0).toFixed(2),
+    fmtCurrency(Number(order.total_amount || 0)),
     order.created_by_role || 'Sales Rep',
     order.id,
   ]);
 
   const salesSheetData = [
-    ['MINI-ERP SALES ORDERS DETAILED REPORT'],
-    [`Total Orders: ${orders.length}`, `Report Date: ${reportDateStr}`],
-    [],
+    ['MINI-ERP SALES ORDERS DETAILED REPORT', '', '', '', '', '', '', ''],
+    [`Total Orders: ${orders.length}  |  Gross Sales: ${fmtCurrency(grossRevenue)}  |  Report Date: ${reportDateStr}`, '', '', '', '', '', '', ''],
+    ['', '', '', '', '', '', '', ''],
     salesHeader,
     ...salesRows,
   ];
 
   const salesSheet = XLSX.utils.aoa_to_sheet(salesSheetData);
-  salesSheet['!cols'] = fitToColumn(salesSheetData);
+  salesSheet['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 7 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } },
+  ];
+  salesSheet['!cols'] = [
+    { wch: 18 }, // Order Number
+    { wch: 28 }, // Customer
+    { wch: 14 }, // Date
+    { wch: 10 }, // Qty
+    { wch: 14 }, // Status
+    { wch: 20 }, // Total Amount
+    { wch: 16 }, // Created By
+    { wch: 38 }, // Order ID
+  ];
+
+  // Style Header & Subtitle
+  for (let c = 0; c < 8; c++) applyCellStyle(salesSheet, 0, c, STYLES.titleBanner);
+  for (let c = 0; c < 8; c++) applyCellStyle(salesSheet, 1, c, STYLES.subtitleBanner);
+
+  // Style Table Header (Row 3)
+  for (let c = 0; c < 8; c++) {
+    const isRight = c === 3 || c === 5;
+    applyCellStyle(salesSheet, 3, c, isRight ? STYLES.tableHeaderRight : STYLES.tableHeaderLeft);
+  }
+
+  // Style Data Rows
+  salesRows.forEach((_, idx) => {
+    const r = 4 + idx;
+    const isAlt = idx % 2 === 1;
+    applyCellStyle(salesSheet, r, 0, STYLES.dataLeft(isAlt, true));
+    applyCellStyle(salesSheet, r, 1, STYLES.dataLeft(isAlt));
+    applyCellStyle(salesSheet, r, 2, STYLES.dataCenter(isAlt));
+    applyCellStyle(salesSheet, r, 3, STYLES.dataRight(isAlt));
+    applyCellStyle(salesSheet, r, 4, STYLES.dataCenter(isAlt, true));
+    applyCellStyle(salesSheet, r, 5, STYLES.dataRight(isAlt, true));
+    applyCellStyle(salesSheet, r, 6, STYLES.dataCenter(isAlt));
+    applyCellStyle(salesSheet, r, 7, STYLES.dataMuted(isAlt));
+  });
+
   XLSX.utils.book_append_sheet(workbook, salesSheet, 'Sales Orders Report');
 
-  // -------------------------------------------------------------
+  // =========================================================================
   // TAB 3: GENERAL LEDGER & CASHFLOW ENTRIES
-  // -------------------------------------------------------------
+  // =========================================================================
   const ledgerHeader = [
     'TRX ID',
     'Date',
@@ -189,8 +413,8 @@ export async function exportFinanceSummaryReport(options: ExportReportOptions = 
       'Sales Revenue',
       `Client Order: ${order.customer_name} (${order.status})`,
       isCancelled ? 'Expense/Refund' : 'Income',
-      `${isCancelled ? '-' : '+'}₱${amountNum.toFixed(2)}`,
-      `₱${runningBalance.toFixed(2)}`,
+      `${isCancelled ? '-' : '+'}${fmtCurrency(amountNum)}`,
+      fmtCurrency(runningBalance),
     ]);
   });
 
@@ -207,27 +431,59 @@ export async function exportFinanceSummaryReport(options: ExportReportOptions = 
         'Inventory Restock',
         `Supplier Restock: ${log.products?.name || 'Stock In'} (${log.quantity} units)`,
         'Expense',
-        `-₱${cost.toFixed(2)}`,
-        `₱${runningBalance.toFixed(2)}`,
+        `-${fmtCurrency(cost)}`,
+        fmtCurrency(runningBalance),
       ]);
     }
   });
 
   const ledgerSheetData = [
-    ['MINI-ERP GENERAL LEDGER & CASHFLOW JOURNAL'],
-    [`Total Entries: ${ledgerRows.length}`, `Report Date: ${reportDateStr}`],
-    [],
+    ['MINI-ERP GENERAL LEDGER & CASHFLOW JOURNAL', '', '', '', '', '', ''],
+    [`Total Entries: ${ledgerRows.length}  |  Net Balance: ${fmtCurrency(runningBalance)}  |  Report Date: ${reportDateStr}`, '', '', '', '', '', ''],
+    ['', '', '', '', '', '', ''],
     ledgerHeader,
     ...ledgerRows,
   ];
 
   const ledgerSheet = XLSX.utils.aoa_to_sheet(ledgerSheetData);
-  ledgerSheet['!cols'] = fitToColumn(ledgerSheetData);
+  ledgerSheet['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 6 } },
+  ];
+  ledgerSheet['!cols'] = [
+    { wch: 18 }, // TRX ID
+    { wch: 14 }, // Date
+    { wch: 20 }, // Category
+    { wch: 42 }, // Description
+    { wch: 16 }, // Flow Type
+    { wch: 20 }, // Amount
+    { wch: 22 }, // Balance
+  ];
+
+  for (let c = 0; c < 7; c++) applyCellStyle(ledgerSheet, 0, c, STYLES.titleBanner);
+  for (let c = 0; c < 7; c++) applyCellStyle(ledgerSheet, 1, c, STYLES.subtitleBanner);
+  for (let c = 0; c < 7; c++) {
+    const isRight = c === 5 || c === 6;
+    applyCellStyle(ledgerSheet, 3, c, isRight ? STYLES.tableHeaderRight : STYLES.tableHeaderLeft);
+  }
+
+  ledgerRows.forEach((_, idx) => {
+    const r = 4 + idx;
+    const isAlt = idx % 2 === 1;
+    applyCellStyle(ledgerSheet, r, 0, STYLES.dataLeft(isAlt, true));
+    applyCellStyle(ledgerSheet, r, 1, STYLES.dataCenter(isAlt));
+    applyCellStyle(ledgerSheet, r, 2, STYLES.dataLeft(isAlt));
+    applyCellStyle(ledgerSheet, r, 3, STYLES.dataLeft(isAlt));
+    applyCellStyle(ledgerSheet, r, 4, STYLES.dataCenter(isAlt, true));
+    applyCellStyle(ledgerSheet, r, 5, STYLES.dataRight(isAlt, true));
+    applyCellStyle(ledgerSheet, r, 6, STYLES.dataRight(isAlt, true));
+  });
+
   XLSX.utils.book_append_sheet(workbook, ledgerSheet, 'General Ledger');
 
-  // -------------------------------------------------------------
+  // =========================================================================
   // TAB 4: PRODUCT CATALOG & INVENTORY VALUATION
-  // -------------------------------------------------------------
+  // =========================================================================
   const inventoryHeader = [
     'SKU',
     'Furniture Piece Name',
@@ -245,29 +501,63 @@ export async function exportFinanceSummaryReport(options: ExportReportOptions = 
       prod.sku || 'N/A',
       prod.name || 'Unnamed Item',
       prod.category || 'General',
-      Number(prod.unit_price || 0).toFixed(2),
+      fmtCurrency(Number(prod.unit_price || 0)),
       Number(prod.stock_count || 0),
       Number(prod.reorder_level || 10),
       prod.status || 'IN STOCK',
-      valuation.toFixed(2),
+      fmtCurrency(valuation),
     ];
   });
 
   const inventorySheetData = [
-    ['MINI-ERP FURNITURE INVENTORY & ASSET VALUATION'],
-    [`Total Catalog SKUs: ${products.length}`, `Total Stock Valuation: ₱${totalInventoryValuation.toFixed(2)}`],
-    [],
+    ['MINI-ERP FURNITURE INVENTORY & ASSET VALUATION', '', '', '', '', '', '', ''],
+    [`Total Catalog SKUs: ${products.length}  |  Total Inventory Valuation: ${fmtCurrency(totalInventoryValuation)}  |  Report Date: ${reportDateStr}`, '', '', '', '', '', '', ''],
+    ['', '', '', '', '', '', '', ''],
     inventoryHeader,
     ...inventoryRows,
   ];
 
   const inventorySheet = XLSX.utils.aoa_to_sheet(inventorySheetData);
-  inventorySheet['!cols'] = fitToColumn(inventorySheetData);
+  inventorySheet['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 7 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } },
+  ];
+  inventorySheet['!cols'] = [
+    { wch: 16 }, // SKU
+    { wch: 32 }, // Name
+    { wch: 20 }, // Category
+    { wch: 18 }, // Price
+    { wch: 14 }, // Units
+    { wch: 18 }, // Threshold
+    { wch: 16 }, // Status
+    { wch: 24 }, // Valuation
+  ];
+
+  for (let c = 0; c < 8; c++) applyCellStyle(inventorySheet, 0, c, STYLES.titleBanner);
+  for (let c = 0; c < 8; c++) applyCellStyle(inventorySheet, 1, c, STYLES.subtitleBanner);
+  for (let c = 0; c < 8; c++) {
+    const isRight = c === 3 || c === 4 || c === 5 || c === 7;
+    applyCellStyle(inventorySheet, 3, c, isRight ? STYLES.tableHeaderRight : STYLES.tableHeaderLeft);
+  }
+
+  inventoryRows.forEach((_, idx) => {
+    const r = 4 + idx;
+    const isAlt = idx % 2 === 1;
+    applyCellStyle(inventorySheet, r, 0, STYLES.dataLeft(isAlt, true));
+    applyCellStyle(inventorySheet, r, 1, STYLES.dataLeft(isAlt));
+    applyCellStyle(inventorySheet, r, 2, STYLES.dataLeft(isAlt));
+    applyCellStyle(inventorySheet, r, 3, STYLES.dataRight(isAlt));
+    applyCellStyle(inventorySheet, r, 4, STYLES.dataRight(isAlt, true));
+    applyCellStyle(inventorySheet, r, 5, STYLES.dataRight(isAlt));
+    applyCellStyle(inventorySheet, r, 6, STYLES.dataCenter(isAlt, true));
+    applyCellStyle(inventorySheet, r, 7, STYLES.dataRight(isAlt, true));
+  });
+
   XLSX.utils.book_append_sheet(workbook, inventorySheet, 'Inventory Valuation');
 
-  // -------------------------------------------------------------
+  // =========================================================================
   // TAB 5: INVOICES & RECEIVABLES (If invoices exist)
-  // -------------------------------------------------------------
+  // =========================================================================
   if (invoices.length > 0) {
     const invoiceHeader = [
       'Invoice Number',
@@ -281,22 +571,46 @@ export async function exportFinanceSummaryReport(options: ExportReportOptions = 
     const invoiceRows = invoices.map((inv) => [
       inv.invoice_number,
       inv.customer_name,
-      Number(inv.amount || 0).toFixed(2),
+      fmtCurrency(Number(inv.amount || 0)),
       inv.due_date,
       inv.status,
       new Date(inv.created_at).toLocaleDateString('en-US'),
     ]);
 
     const invoiceSheetData = [
-      ['MINI-ERP INVOICES & RECEIVABLES REPORT'],
-      [`Total Invoices: ${invoices.length}`, `Report Date: ${reportDateStr}`],
-      [],
+      ['MINI-ERP INVOICES & RECEIVABLES REPORT', '', '', '', '', ''],
+      [`Total Invoices: ${invoices.length}  |  Report Date: ${reportDateStr}`, '', '', '', '', ''],
+      ['', '', '', '', '', ''],
       invoiceHeader,
       ...invoiceRows,
     ];
 
     const invoiceSheet = XLSX.utils.aoa_to_sheet(invoiceSheetData);
-    invoiceSheet['!cols'] = fitToColumn(invoiceSheetData);
+    invoiceSheet['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 5 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 5 } },
+    ];
+    invoiceSheet['!cols'] = [
+      { wch: 18 }, { wch: 28 }, { wch: 20 }, { wch: 16 }, { wch: 16 }, { wch: 16 },
+    ];
+
+    for (let c = 0; c < 6; c++) applyCellStyle(invoiceSheet, 0, c, STYLES.titleBanner);
+    for (let c = 0; c < 6; c++) applyCellStyle(invoiceSheet, 1, c, STYLES.subtitleBanner);
+    for (let c = 0; c < 6; c++) {
+      applyCellStyle(invoiceSheet, 3, c, c === 2 ? STYLES.tableHeaderRight : STYLES.tableHeaderLeft);
+    }
+
+    invoiceRows.forEach((_, idx) => {
+      const r = 4 + idx;
+      const isAlt = idx % 2 === 1;
+      applyCellStyle(invoiceSheet, r, 0, STYLES.dataLeft(isAlt, true));
+      applyCellStyle(invoiceSheet, r, 1, STYLES.dataLeft(isAlt));
+      applyCellStyle(invoiceSheet, r, 2, STYLES.dataRight(isAlt, true));
+      applyCellStyle(invoiceSheet, r, 3, STYLES.dataCenter(isAlt));
+      applyCellStyle(invoiceSheet, r, 4, STYLES.dataCenter(isAlt, true));
+      applyCellStyle(invoiceSheet, r, 5, STYLES.dataCenter(isAlt));
+    });
+
     XLSX.utils.book_append_sheet(workbook, invoiceSheet, 'Invoices & Receivables');
   }
 
@@ -320,17 +634,67 @@ export async function exportFinanceSummaryReport(options: ExportReportOptions = 
 export async function exportAuditLogsReport(options: ExportReportOptions = {}) {
   const supabase = createClient();
 
-  const [stockLogsRes, ordersRes, productsRes, profilesRes] = await Promise.all([
-    supabase.from('stock_logs').select('*, products(name, sku, unit_price)').order('created_at', { ascending: false }),
-    supabase.from('orders').select('*').order('created_at', { ascending: false }),
-    supabase.from('products').select('*').order('created_at', { ascending: false }),
-    supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+  // 1. Fetch live activity and system data from Supabase
+  const [ordersRes, productsRes, stockLogsRes, profilesRes] = await Promise.all([
+    supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(200),
+    supabase.from('products').select('*').order('created_at', { ascending: false }).limit(200),
+    supabase.from('stock_logs').select('*, products(name, sku, unit_price)').order('created_at', { ascending: false }).limit(200),
+    supabase.from('profiles').select('*').order('created_at', { ascending: false }).limit(200),
   ]);
 
-  const stockLogs = stockLogsRes.data || [];
   const orders = ordersRes.data || [];
   const products = productsRes.data || [];
+  const stockLogs = stockLogsRes.data || [];
   const profiles = profilesRes.data || [];
+
+  // Map employee ID to Name
+  const profileMap = new Map<string, string>();
+  profiles.forEach((p) => {
+    profileMap.set(p.id, p.full_name || p.email || 'Admin Staff');
+  });
+
+  // 2. Synthesize unified system activity trail
+  const activityTrail: (string | number)[][] = [];
+
+  // Stock additions and deductions
+  stockLogs.forEach((log: any) => {
+    const isAddition = log.change_type === 'ADDITION';
+    activityTrail.push([
+      `ACT-STK-${log.id.slice(0, 6).toUpperCase()}`,
+      new Date(log.created_at).toLocaleString('en-US'),
+      'Inventory / Warehouse',
+      isAddition ? 'STOCK_REPLENISHMENT' : 'STOCK_DEDUCTION',
+      'Product SKU',
+      log.products?.sku || 'N/A',
+      `${isAddition ? '+' : '-'}${log.quantity} units`,
+      log.user_id ? profileMap.get(log.user_id) || 'Warehouse Tech' : 'Automated System',
+      isAddition ? 'INFO' : 'AUDIT',
+      log.reason || (isAddition ? 'Inventory replenishment' : 'Order fulfillment deduction'),
+    ]);
+  });
+
+  // Sales Orders activity
+  orders.forEach((order: any) => {
+    activityTrail.push([
+      `ACT-ORD-${order.id.slice(0, 6).toUpperCase()}`,
+      new Date(order.created_at).toLocaleString('en-US'),
+      'Sales Commerce',
+      `ORDER_${order.status}`,
+      'Client Order',
+      order.order_number,
+      fmtCurrency(Number(order.total_amount || 0)),
+      order.customer_name || 'Showroom Client',
+      order.status === 'COMPLETED' ? 'SUCCESS' : order.status === 'CANCELLED' ? 'WARNING' : 'PENDING',
+      `Commercial sale (${order.quantity || 1} units) via ${order.payment_method || 'Standard Gateway'}`,
+    ]);
+  });
+
+  // Sort descending by date
+  activityTrail.sort((a, b) => new Date(b[1] as string).getTime() - new Date(a[1] as string).getTime());
+
+  const additionsCount = stockLogs.filter((l: any) => l.change_type === 'ADDITION').length;
+  const deductionsCount = stockLogs.filter((l: any) => l.change_type === 'DEDUCTION').length;
+  const alertsCount = products.filter((p: any) => Number(p.stock_count || 0) <= Number(p.reorder_level || 0)).length;
 
   const now = new Date();
   const reportDateStr = now.toLocaleDateString('en-US', {
@@ -345,128 +709,75 @@ export async function exportAuditLogsReport(options: ExportReportOptions = {}) {
   });
   const isoDateStr = now.toISOString().split('T')[0];
 
-  // Synthesize unified activity trail
-  const activityTrail: (string | number)[][] = [];
-  let additionsCount = 0;
-  let deductionsCount = 0;
-  let alertsCount = 0;
-
-  // Stock logs
-  stockLogs.forEach((log: any) => {
-    const isAdd = log.change_type === 'ADDITION';
-    const isDed = log.change_type === 'DEDUCTION';
-    if (isAdd) additionsCount++;
-    if (isDed) deductionsCount++;
-
-    activityTrail.push([
-      `LOG-STK-${log.id.slice(0, 8)}`,
-      new Date(log.created_at).toLocaleString('en-US'),
-      'Inventory',
-      isAdd ? 'STOCK_ADDITION' : isDed ? 'STOCK_DEDUCTION' : 'STOCK_ADJUSTMENT',
-      log.products?.name || 'Inventory Item',
-      log.products?.sku ? `SKU: ${log.products.sku}` : 'General',
-      `${Number(log.quantity) > 0 ? '+' : ''}${log.quantity} units`,
-      isAdd ? 'Supplier Restock' : isDed ? 'Order Fulfillment' : 'Inventory Admin',
-      isAdd ? 'SUCCESS' : 'INFO',
-      log.reason || 'Stock level updated',
-    ]);
-  });
-
-  // Orders
-  orders.forEach((order: any) => {
-    const isComp = order.status === 'COMPLETED';
-    const isCanc = order.status === 'CANCELLED';
-
-    activityTrail.push([
-      `LOG-ORD-${order.id.slice(0, 8)}`,
-      new Date(order.created_at).toLocaleString('en-US'),
-      'Sales & Orders',
-      isComp ? 'ORDER_COMPLETED' : isCanc ? 'ORDER_CANCELLED' : 'ORDER_CREATED',
-      order.order_number || `ORD-${order.id.slice(0, 6)}`,
-      `Client: ${order.customer_name}`,
-      `₱${Number(order.total_amount || 0).toFixed(2)}`,
-      order.created_by_role || 'Sales Rep',
-      isComp ? 'SUCCESS' : isCanc ? 'WARNING' : 'INFO',
-      `Order for ${order.customer_name} (${order.status}). Amount: ₱${Number(order.total_amount || 0).toFixed(2)}`,
-    ]);
-  });
-
-  // Products
-  products.forEach((prod: any) => {
-    activityTrail.push([
-      `LOG-PRD-${prod.id.slice(0, 8)}`,
-      new Date(prod.created_at || now).toLocaleString('en-US'),
-      'Catalog',
-      'PRODUCT_CATALOGED',
-      prod.name,
-      `SKU: ${prod.sku}`,
-      `${prod.stock_count} units (₱${Number(prod.unit_price || 0).toFixed(2)})`,
-      'Inventory Admin',
-      'INFO',
-      `Cataloged piece "${prod.name}" in ${prod.category} collection.`,
-    ]);
-
-    if (Number(prod.stock_count) <= Number(prod.reorder_level)) {
-      alertsCount++;
-      activityTrail.push([
-        `ALERT-STK-${prod.id.slice(0, 8)}`,
-        new Date(prod.updated_at || prod.created_at || now).toLocaleString('en-US'),
-        'Inventory',
-        prod.stock_count === 0 ? 'OUT_OF_STOCK_TRIGGER' : 'LOW_STOCK_TRIGGER',
-        prod.name,
-        `SKU: ${prod.sku}`,
-        `${prod.stock_count} units left`,
-        'System Guard',
-        'WARNING',
-        `Low stock alert: ${prod.name} has ${prod.stock_count} units remaining (threshold: ${prod.reorder_level}).`,
-      ]);
-    }
-  });
-
-  // Profiles
-  profiles.forEach((prof: any) => {
-    activityTrail.push([
-      `LOG-USR-${prof.id.slice(0, 8)}`,
-      new Date(prof.created_at || now).toLocaleString('en-US'),
-      'User & Auth',
-      'STAFF_REGISTERED',
-      prof.full_name,
-      `Role: ${prof.role}`,
-      prof.role,
-      'System Admin',
-      'SECURITY',
-      `Staff user registered for ${prof.full_name} (${prof.email}) with ${prof.role} role.`,
-    ]);
-  });
-
   const workbook = XLSX.utils.book_new();
 
-  // -------------------------------------------------------------
+  // =========================================================================
   // TAB 1: AUDIT SUMMARY & METRICS
-  // -------------------------------------------------------------
+  // =========================================================================
   const summaryData: (string | number)[][] = [
-    ['MINI-ERP LUXURY FURNITURE & INTERIOR LIVING'],
-    ['ENTERPRISE AUDIT TRAIL & SYSTEM ACTIVITY LOGS REPORT'],
-    ['Generated On:', `${reportDateStr} at ${reportTimeStr}`],
-    ['Database Source:', 'Supabase Live Production Database'],
-    [],
+    ['MINI-ERP LUXURY FURNITURE & INTERIOR LIVING', '', ''],
+    ['ENTERPRISE AUDIT TRAIL & SYSTEM ACTIVITY LOGS REPORT', '', ''],
+    [`Report Generated: ${reportDateStr} at ${reportTimeStr}  |  Database Source: Supabase Live Database`, '', ''],
+    ['', '', ''],
+    ['1. SYSTEM ACTIVITY & EVENT METRICS', '', ''],
     ['AUDIT METRIC CATEGORY', 'COUNT / VALUE', 'AUDIT DESCRIPTION'],
-    ['Total System Activity Events', activityTrail.length, 'All aggregated audit, inventory, order, and user actions'],
-    ['Stock Additions (Restocks)', additionsCount, 'Supplier stock intake and catalog warehouse replenishments'],
-    ['Stock Deductions (Fulfillments)', deductionsCount, 'Stock deducted upon customer order completions'],
-    ['Security Alerts & Warnings', alertsCount, 'Low-stock triggers and sensitive system operations'],
-    ['Active Product Catalog SKUs', products.length, 'Monitored luxury furniture pieces in catalog'],
-    ['Total Customer Orders Monitored', orders.length, 'Sales transactions tracked in audit ledger'],
-    ['Registered Enterprise Staff', profiles.length, 'Active staff and administrator accounts with logged access'],
+    ['Total System Activity Events', `${activityTrail.length} Logged Events`, 'All aggregated audit, inventory, order, and user actions'],
+    ['Stock Additions (Restocks)', `${additionsCount} Replenishments`, 'Supplier stock intake and catalog warehouse replenishments'],
+    ['Stock Deductions (Fulfillments)', `${deductionsCount} Deductions`, 'Stock deducted upon customer order completions'],
+    ['Security Alerts & Warnings', `${alertsCount} Active Alerts`, 'Low-stock triggers and sensitive system operations'],
+    ['', '', ''],
+    ['2. MONITORED ASSETS & DIRECTORY', '', ''],
+    ['MONITORED ENTITY', 'ACTIVE QUANTITY', 'SCOPE OF AUDIT'],
+    ['Active Product Catalog SKUs', `${products.length} SKUs`, 'Monitored luxury furniture pieces in catalog'],
+    ['Total Customer Orders Monitored', `${orders.length} Orders`, 'Sales transactions tracked in audit ledger'],
+    ['Registered Enterprise Staff', `${profiles.length} Staff Profiles`, 'Active staff and administrator accounts with logged access'],
   ];
 
-  const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-  summarySheet['!cols'] = fitToColumn(summaryData);
-  XLSX.utils.book_append_sheet(workbook, summarySheet, 'Audit Summary');
+  const auditSummarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+  auditSummarySheet['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 2 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 2 } },
+    { s: { r: 2, c: 0 }, e: { r: 2, c: 2 } },
+    { s: { r: 4, c: 0 }, e: { r: 4, c: 2 } },
+    { s: { r: 11, c: 0 }, e: { r: 11, c: 2 } },
+  ];
+  auditSummarySheet['!cols'] = [{ wch: 38 }, { wch: 28 }, { wch: 56 }];
 
-  // -------------------------------------------------------------
+  for (let c = 0; c < 3; c++) applyCellStyle(auditSummarySheet, 0, c, STYLES.titleBanner);
+  for (let c = 0; c < 3; c++) applyCellStyle(auditSummarySheet, 1, c, STYLES.subtitleBanner);
+  for (let c = 0; c < 3; c++) applyCellStyle(auditSummarySheet, 2, c, STYLES.metaBanner);
+
+  // Section 1
+  for (let c = 0; c < 3; c++) applyCellStyle(auditSummarySheet, 4, c, STYLES.categoryHeader);
+  applyCellStyle(auditSummarySheet, 5, 0, STYLES.tableHeaderLeft);
+  applyCellStyle(auditSummarySheet, 5, 1, STYLES.tableHeaderRight);
+  applyCellStyle(auditSummarySheet, 5, 2, STYLES.tableHeaderLeft);
+  for (let i = 0; i < 4; i++) {
+    const r = 6 + i;
+    const isAlt = i % 2 === 1;
+    applyCellStyle(auditSummarySheet, r, 0, STYLES.dataLeft(isAlt, true));
+    applyCellStyle(auditSummarySheet, r, 1, STYLES.dataRight(isAlt, true));
+    applyCellStyle(auditSummarySheet, r, 2, STYLES.dataMuted(isAlt));
+  }
+
+  // Section 2
+  for (let c = 0; c < 3; c++) applyCellStyle(auditSummarySheet, 11, c, STYLES.categoryHeader);
+  applyCellStyle(auditSummarySheet, 12, 0, STYLES.tableHeaderLeft);
+  applyCellStyle(auditSummarySheet, 12, 1, STYLES.tableHeaderRight);
+  applyCellStyle(auditSummarySheet, 12, 2, STYLES.tableHeaderLeft);
+  for (let i = 0; i < 3; i++) {
+    const r = 13 + i;
+    const isAlt = i % 2 === 1;
+    applyCellStyle(auditSummarySheet, r, 0, STYLES.dataLeft(isAlt, true));
+    applyCellStyle(auditSummarySheet, r, 1, STYLES.dataRight(isAlt, true));
+    applyCellStyle(auditSummarySheet, r, 2, STYLES.dataMuted(isAlt));
+  }
+
+  XLSX.utils.book_append_sheet(workbook, auditSummarySheet, 'Audit Summary');
+
+  // =========================================================================
   // TAB 2: COMPLETE ACTIVITY FEED
-  // -------------------------------------------------------------
+  // =========================================================================
   const activityHeader = [
     'Log ID',
     'Date & Time',
@@ -481,20 +792,52 @@ export async function exportAuditLogsReport(options: ExportReportOptions = {}) {
   ];
 
   const activitySheetData = [
-    ['MINI-ERP UNIFIED SYSTEM ACTIVITY FEED'],
-    [`Total Logged Events: ${activityTrail.length}`, `Report Date: ${reportDateStr}`],
-    [],
+    ['MINI-ERP UNIFIED SYSTEM ACTIVITY FEED', '', '', '', '', '', '', '', '', ''],
+    [`Total Logged Events: ${activityTrail.length}  |  Report Date: ${reportDateStr}`, '', '', '', '', '', '', '', '', ''],
+    ['', '', '', '', '', '', '', '', '', ''],
     activityHeader,
     ...activityTrail,
   ];
 
   const activitySheet = XLSX.utils.aoa_to_sheet(activitySheetData);
-  activitySheet['!cols'] = fitToColumn(activitySheetData);
+  activitySheet['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 9 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 9 } },
+  ];
+  activitySheet['!cols'] = [
+    { wch: 18 }, { wch: 22 }, { wch: 20 }, { wch: 24 }, { wch: 16 },
+    { wch: 18 }, { wch: 18 }, { wch: 22 }, { wch: 14 }, { wch: 48 },
+  ];
+
+  for (let c = 0; c < 10; c++) applyCellStyle(activitySheet, 0, c, STYLES.titleBanner);
+  for (let c = 0; c < 10; c++) applyCellStyle(activitySheet, 1, c, STYLES.subtitleBanner);
+  for (let c = 0; c < 10; c++) {
+    applyCellStyle(activitySheet, 3, c, STYLES.tableHeaderLeft);
+  }
+
+  activityTrail.forEach((_, idx) => {
+    const r = 4 + idx;
+    const isAlt = idx % 2 === 1;
+    for (let c = 0; c < 10; c++) {
+      if (c === 0 || c === 3) {
+        applyCellStyle(activitySheet, r, c, STYLES.dataLeft(isAlt, true));
+      } else if (c === 1 || c === 8) {
+        applyCellStyle(activitySheet, r, c, STYLES.dataCenter(isAlt));
+      } else if (c === 6) {
+        applyCellStyle(activitySheet, r, c, STYLES.dataRight(isAlt, true));
+      } else if (c === 9) {
+        applyCellStyle(activitySheet, r, c, STYLES.dataMuted(isAlt));
+      } else {
+        applyCellStyle(activitySheet, r, c, STYLES.dataLeft(isAlt));
+      }
+    }
+  });
+
   XLSX.utils.book_append_sheet(workbook, activitySheet, 'Activity Feed');
 
-  // -------------------------------------------------------------
+  // =========================================================================
   // TAB 3: STOCK MOVEMENTS DETAIL
-  // -------------------------------------------------------------
+  // =========================================================================
   const stockHeader = [
     'Stock Log ID',
     'Date & Time',
@@ -513,25 +856,53 @@ export async function exportAuditLogsReport(options: ExportReportOptions = {}) {
     log.products?.name || 'Stock Item',
     log.products?.sku || 'N/A',
     `${Number(log.quantity) > 0 ? '+' : ''}${log.quantity}`,
-    Number(log.products?.unit_price || 0).toFixed(2),
+    fmtCurrency(Number(log.products?.unit_price || 0)),
     log.reason || 'Operational stock change',
   ]);
 
   const stockSheetData = [
-    ['MINI-ERP STOCK MOVEMENT AUDIT LOGS'],
-    [`Total Stock Logs: ${stockLogs.length}`, `Report Date: ${reportDateStr}`],
-    [],
+    ['MINI-ERP STOCK MOVEMENT AUDIT LOGS', '', '', '', '', '', '', ''],
+    [`Total Stock Logs: ${stockLogs.length}  |  Report Date: ${reportDateStr}`, '', '', '', '', '', '', ''],
+    ['', '', '', '', '', '', '', ''],
     stockHeader,
     ...stockRows,
   ];
 
   const stockSheet = XLSX.utils.aoa_to_sheet(stockSheetData);
-  stockSheet['!cols'] = fitToColumn(stockSheetData);
+  stockSheet['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 7 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } },
+  ];
+  stockSheet['!cols'] = [
+    { wch: 18 }, { wch: 22 }, { wch: 18 }, { wch: 32 }, { wch: 16 },
+    { wch: 18 }, { wch: 18 }, { wch: 40 },
+  ];
+
+  for (let c = 0; c < 8; c++) applyCellStyle(stockSheet, 0, c, STYLES.titleBanner);
+  for (let c = 0; c < 8; c++) applyCellStyle(stockSheet, 1, c, STYLES.subtitleBanner);
+  for (let c = 0; c < 8; c++) {
+    const isRight = c === 5 || c === 6;
+    applyCellStyle(stockSheet, 3, c, isRight ? STYLES.tableHeaderRight : STYLES.tableHeaderLeft);
+  }
+
+  stockRows.forEach((_, idx) => {
+    const r = 4 + idx;
+    const isAlt = idx % 2 === 1;
+    applyCellStyle(stockSheet, r, 0, STYLES.dataLeft(isAlt, true));
+    applyCellStyle(stockSheet, r, 1, STYLES.dataCenter(isAlt));
+    applyCellStyle(stockSheet, r, 2, STYLES.dataCenter(isAlt, true));
+    applyCellStyle(stockSheet, r, 3, STYLES.dataLeft(isAlt));
+    applyCellStyle(stockSheet, r, 4, STYLES.dataLeft(isAlt));
+    applyCellStyle(stockSheet, r, 5, STYLES.dataRight(isAlt, true));
+    applyCellStyle(stockSheet, r, 6, STYLES.dataRight(isAlt));
+    applyCellStyle(stockSheet, r, 7, STYLES.dataMuted(isAlt));
+  });
+
   XLSX.utils.book_append_sheet(workbook, stockSheet, 'Stock Movement Logs');
 
-  // -------------------------------------------------------------
+  // =========================================================================
   // TAB 4: SALES & ORDER TRANSACTIONS AUDIT
-  // -------------------------------------------------------------
+  // =========================================================================
   const orderHeader = [
     'Order Number',
     'Customer Name',
@@ -547,21 +918,47 @@ export async function exportAuditLogsReport(options: ExportReportOptions = {}) {
     o.customer_name,
     new Date(o.created_at).toLocaleString('en-US'),
     o.status,
-    Number(o.total_amount || 0).toFixed(2),
+    fmtCurrency(Number(o.total_amount || 0)),
     o.created_by_role || 'Sales Rep',
     o.id,
   ]);
 
   const orderSheetData = [
-    ['MINI-ERP SALES & ORDERS AUDIT TRAIL'],
-    [`Total Orders: ${orders.length}`, `Report Date: ${reportDateStr}`],
-    [],
+    ['MINI-ERP SALES & ORDERS AUDIT TRAIL', '', '', '', '', '', ''],
+    [`Total Orders: ${orders.length}  |  Report Date: ${reportDateStr}`, '', '', '', '', '', ''],
+    ['', '', '', '', '', '', ''],
     orderHeader,
     ...orderRows,
   ];
 
   const orderSheet = XLSX.utils.aoa_to_sheet(orderSheetData);
-  orderSheet['!cols'] = fitToColumn(orderSheetData);
+  orderSheet['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 6 } },
+  ];
+  orderSheet['!cols'] = [
+    { wch: 18 }, { wch: 28 }, { wch: 22 }, { wch: 16 }, { wch: 20 }, { wch: 18 }, { wch: 38 },
+  ];
+
+  for (let c = 0; c < 7; c++) applyCellStyle(orderSheet, 0, c, STYLES.titleBanner);
+  for (let c = 0; c < 7; c++) applyCellStyle(orderSheet, 1, c, STYLES.subtitleBanner);
+  for (let c = 0; c < 7; c++) {
+    const isRight = c === 4;
+    applyCellStyle(orderSheet, 3, c, isRight ? STYLES.tableHeaderRight : STYLES.tableHeaderLeft);
+  }
+
+  orderRows.forEach((_, idx) => {
+    const r = 4 + idx;
+    const isAlt = idx % 2 === 1;
+    applyCellStyle(orderSheet, r, 0, STYLES.dataLeft(isAlt, true));
+    applyCellStyle(orderSheet, r, 1, STYLES.dataLeft(isAlt));
+    applyCellStyle(orderSheet, r, 2, STYLES.dataCenter(isAlt));
+    applyCellStyle(orderSheet, r, 3, STYLES.dataCenter(isAlt, true));
+    applyCellStyle(orderSheet, r, 4, STYLES.dataRight(isAlt, true));
+    applyCellStyle(orderSheet, r, 5, STYLES.dataCenter(isAlt));
+    applyCellStyle(orderSheet, r, 6, STYLES.dataMuted(isAlt));
+  });
+
   XLSX.utils.book_append_sheet(workbook, orderSheet, 'Sales & Orders Audit');
 
   // Trigger Download
