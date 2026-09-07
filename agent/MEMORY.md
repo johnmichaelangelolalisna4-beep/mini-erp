@@ -3,9 +3,9 @@
 ## 1. Project Overview
 * **Project Name:** Mini-ERP Web System (`mini-erp-app`)
 * **Business Domain:** Luxury Furniture & Interior Living Enterprise Operations
-* **Repository:** `https://github.com/johnmichaelangelolalisna4-beep/mini-erp.git` (branch: `master`)
+* **Repository:** `https://github.com/johnmichaelangelolalisna4-beep/mini-erp.git` (branch: `master`, latest commit: `abd7756`)
 * **Workspace Path:** `c:\Users\ADMIN\Desktop\Folder1\mini-erp` (Clean root level, flattened)
-* **Tech Stack:** Next.js 16.3.0 (App Router, Turbopack), React 19, TypeScript 5, Supabase (`@supabase/supabase-js`, `@supabase/ssr`), Tailwind CSS v4, shadcn/ui primitives, Recharts, Lucide Icons, Google Gemini AI (`gemini-3.5-flash-lite`).
+* **Tech Stack:** Next.js 16.3.0 (App Router, Turbopack), React 19, TypeScript 5, Supabase (`@supabase/supabase-js`, `@supabase/ssr`), Tailwind CSS v4, shadcn/ui primitives, Recharts, Lucide Icons, Google Gemini AI (`gemini-3.5-flash-lite`), `xlsx-js-style`.
 * **Database & Auth:** Supabase (`https://qaodmynygehskbxsouvs.supabase.co`)
 
 ---
@@ -23,7 +23,61 @@ All UI components strictly adhere to the Warm Espresso & Timber color palette:
 
 ---
 
-## 3. Database, Realtime & Supabase Architecture
+## 3. Project Architecture & Directory Structure
+The codebase follows a scalable **Feature-Sliced & Domain-Driven Architecture** with clean boundary separation:
+
+```
+mini-erp/
+├── app/                                # Next.js App Router (Routing & Pages ONLY)
+│   ├── admin/                          # Admin portal pages & layout
+│   ├── sales/                          # Sales portal pages & layout
+│   ├── inventory/                      # Inventory portal pages & layout
+│   ├── api/                            # Next.js Server API endpoints
+│   └── page.tsx                        # Root login entry
+│
+├── components/                         # Global Presentation Components
+│   ├── layout/                         # Core navigation & structural layout
+│   │   ├── main-sidebar.tsx            # Main expandable navigation drawer
+│   │   ├── sidebar-rail.tsx            # Compact icon quick-switch rail
+│   │   ├── top-header.tsx              # Portal header bar with profile & quick links
+│   │   └── mobile-nav-drawer.tsx       # Responsive mobile slide-over navigation
+│   └── ui/                             # shadcn & base UI primitives (Button, Card, Badge, etc.)
+│
+├── features/                           # Domain Feature Slices (Feature-Driven)
+│   ├── admin/                          # Administrator domain feature module
+│   │   ├── components/
+│   │   │   ├── kpi-card.tsx            # Dynamic KPI metrics cards
+│   │   │   ├── revenue-bar-chart.tsx   # Revenue vs volume analytics graph
+│   │   │   └── category-pie-chart.tsx  # Product category distribution chart
+│   │   └── index.ts                    # Feature barrel export
+│   └── ai-assistant/                   # AI Chatbot Assistant feature module
+│       ├── components/
+│       │   └── ai-chat-assistant.tsx   # Floating/docked AI chat assistant drawer
+│       └── index.ts                    # Feature barrel export
+│
+├── server/                             # Backend, Database & Server Services Layer
+│   ├── supabase/                       # Supabase client & server factories
+│   │   ├── client.ts                   # Browser SSR client factory
+│   │   ├── server.ts                   # Server component & API route client factory
+│   │   └── proxy.ts                    # Session refresh & firewall routing proxy
+│   └── services/                       # Server-side business logic & services
+│       ├── admin.ts                    # Central database queries & mutations
+│       ├── excel-export.ts             # Styled multi-tab Excel export engine
+│       └── cache.ts                    # Stale-While-Revalidate caching & request deduplicator
+│
+├── lib/                                # Shared Utilities & Backward-Compatibility Shims
+│   ├── context/                        # React Context providers (AI Chat, Mobile Nav)
+│   ├── hooks/                          # Custom reusable React hooks
+│   ├── utils.ts                        # Styling & classnames helpers
+│   ├── supabase/                       # Re-export shims (points to @/server/supabase/*)
+│   └── services/                       # Re-export shims (points to @/server/services/*)
+│
+└── proxy.ts                            # Root proxy entry (delegates to @/server/supabase/proxy)
+```
+
+---
+
+## 4. Database, Realtime & Supabase Architecture
 
 ### A. Environment Configuration (`.env.local`)
 * `NEXT_PUBLIC_SUPABASE_URL`: `https://qaodmynygehskbxsouvs.supabase.co`
@@ -33,9 +87,10 @@ All UI components strictly adhere to the Warm Espresso & Timber color palette:
 * `GEMINI_MODEL`: `gemini-3.5-flash-lite`
 
 ### B. SSR Client Helpers & Proxy
-* [`lib/supabase/client.ts`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/lib/supabase/client.ts): Browser client helper (`createBrowserClient`).
-* [`lib/supabase/server.ts`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/lib/supabase/server.ts): Server component & admin service role client helper (`createAdminClient`).
-* [`lib/supabase/proxy.ts`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/lib/supabase/proxy.ts) & [`proxy.ts`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/proxy.ts): Next.js session refresh proxy (Next.js 16+ convention).
+* [`server/supabase/client.ts`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/server/supabase/client.ts): Browser client helper (`createBrowserClient`).
+* [`server/supabase/server.ts`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/server/supabase/server.ts): Server component & admin service role client helper (`createAdminClient`).
+* [`server/supabase/proxy.ts`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/server/supabase/proxy.ts) & [`proxy.ts`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/proxy.ts): Next.js session refresh proxy (Next.js 16+ convention) with RBAC firewall and security headers.
+* **Backward-Compatibility Shims**: Re-export shims exist in `lib/supabase/*` and `lib/services/*` to guarantee zero breakages for any legacy imports.
 
 ### C. Native Realtime WebSocket Sync (`supabase_realtime`)
 * **Publication Setup (`supabase/schema.sql`)**: Core tables published to `supabase_realtime` (`orders`, `products`, `order_items`, `stock_logs`, `profiles`).
@@ -52,7 +107,18 @@ All UI components strictly adhere to the Warm Espresso & Timber color palette:
 
 ---
 
-## 4. AI Chatbot Architecture & Capabilities
+## 5. Excel Reporting Engine (`server/services/excel-export.ts`)
+* **Engine**: Built with `xlsx-js-style` for full cell-level styling and XML attribute compatibility.
+* **Executive Summary Sheet**: Combines structured KPI sections (Financial Performance, Order Volume, Warehouse Inventory Health, System Health) with merged title/subtitle banners (`PALETTE.ESPRESSO`, `PALETTE.GROUNDS`, `PALETTE.CREMA`), proportional column auto-spacing (`wch`), thin cell borders (`THIN_BORDER`), and alternating row fills (`PALETTE.FOAM_LIGHT`).
+* **Detailed Worksheets**:
+  - `Sales Orders Report`: Tabular order details with customer names, quantities, statuses, and currency formatting.
+  - `General Ledger`: Running balance tracking with color-coded income vs expense allocations.
+  - `Inventory Valuation`: Catalog valuation calculated from live unit pricing and stock counts.
+  - `Audit & Stock Movement Logs`: Granular event trails with actors, timestamps, and movement reasons.
+
+---
+
+## 6. AI Chatbot Architecture & Capabilities
 
 ### A. Core Engine & Role-Based Access Control (RBAC)
 * **Model & Dynamic Execution**: Exclusively powered by `gemini-3.5-flash-lite`. Reads `process.env.GEMINI_API_KEY` dynamically per request in [`app/api/chat/route.ts`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/app/api/chat/route.ts).
@@ -65,11 +131,20 @@ All UI components strictly adhere to the Warm Espresso & Timber color palette:
 * **Proposal Flow**: Asking to add or deduct stock calls `prepare_stock_adjustment` to calculate stock progression (`Current: 15 ➔ New: 35 units`) with structured payload (`action_type: "STOCK_ADJUSTMENT"`, `action_id`, `product_id`, `quantity`, `change_type`).
 * **In-Chat Confirmation Card ([`components/ui/action-confirmation-card.tsx`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/components/ui/action-confirmation-card.tsx))**: Renders directly inside the chat message with **[Confirm & Apply Stock]** and **[Cancel]** buttons.
 * **Execution & Logging ([`app/api/chat/execute-action/route.ts`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/app/api/chat/execute-action/route.ts))**: Validates action payload, mutates `products.stock_count` & `status`, writes a `stock_logs` audit row, and broadcasts cache invalidation across the app.
-* **Chat Input UI Polish ([`components/ai-chat-assistant.tsx`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/components/ai-chat-assistant.tsx) & [`app/globals.css`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/app/globals.css))**: Textarea features smooth auto-resizing up to `max-h-24` with native browser scrollbar button suppression (`::-webkit-scrollbar-button`) and `scrollbar-none`.
+* **Chat Input UI Polish ([`features/ai-assistant/components/ai-chat-assistant.tsx`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/features/ai-assistant/components/ai-chat-assistant.tsx) & [`app/globals.css`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/app/globals.css))**: Textarea features smooth auto-resizing up to `max-h-24` with native browser scrollbar button suppression (`::-webkit-scrollbar-button`) and `scrollbar-none`.
 
 ---
 
-## 5. Portals & Application Routes
+## 7. Responsive Navigation & Layout System
+* **Triple Navigation Architecture**:
+  1. `SidebarRail` ([`components/layout/sidebar-rail.tsx`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/components/layout/sidebar-rail.tsx)): Compact 64px icon quick-switcher for desktop (hidden on `<md`).
+  2. `MainSidebar` ([`components/layout/main-sidebar.tsx`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/components/layout/main-sidebar.tsx)): Full 288px drawer with badges and detailed navigation sections (hidden on `<lg`).
+  3. `MobileNavDrawer` ([`components/layout/mobile-nav-drawer.tsx`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/components/layout/mobile-nav-drawer.tsx)): Animated slide-over mobile drawer triggered by the hamburger icon on screens `<lg`, backed by [`lib/context/mobile-nav-context.tsx`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/lib/context/mobile-nav-context.tsx) with backdrop blur and smooth exit/entry transitions.
+* **`TopHeader` ([`components/layout/top-header.tsx`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/components/layout/top-header.tsx))**: Sticky portal header featuring hamburger toggle button on mobile, quick portal links, active user avatar/role, and AI assistant toggle button.
+
+---
+
+## 8. Portals & Application Routes
 
 ### A. Landing & Authentication (`/`)
 * **[`app/page.tsx`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/app/page.tsx)**: Architectural drafting grid background with 40px `CREMA` grid lines, blueprint crosshairs (`+ 01. LIVING & TIMBER OPERATIONS`), multi-point ambient radial glows, and elevated Warm Espresso staff sign-in card.
@@ -96,12 +171,11 @@ All UI components strictly adhere to the Warm Espresso & Timber color palette:
 
 ---
 
-## 6. UI Primitives & Custom Components
+## 9. UI Primitives & Custom Components
 * **`OrderStatusPill` ([`app/admin/sales/page.tsx`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/app/admin/sales/page.tsx))**: 100% Clip-Proof React Portal Status Badge Dropdown rendered via `createPortal` to `document.body` with dynamic bounding client rect positioning.
 * **Clean Reference Invoice Modal ([`app/admin/sales/page.tsx`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/app/admin/sales/page.tsx))**: Sales Order invoice modal matching reference layout with 4-column metadata card, clean line-item breakdown, terms & conditions, subtotal/tax/grand total breakdown, and separate `[ Print Invoice ]` and `[ Download PDF ]` buttons.
 * **Interactive Quota Customizer Modal**: Warm Espresso modal with quick preset chips and custom numeric input on both `/sales/overview` and `/admin/dashboard`, sharing synchronized `localStorage` state.
-* **Category Sales Distribution Donut Chart ([`components/category-pie-chart.tsx`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/components/category-pie-chart.tsx))**: Array-safe unpacking and multi-layer category resolution with distinct Warm Espresso palette slice colors per collection.
-* **Main Sidebar ([`components/main-sidebar.tsx`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/components/main-sidebar.tsx))**: Widened to `w-72` (288px) with full label visibility for badges (`Low Stock & Restock` with `1 ALERT`).
+* **Category Sales Distribution Donut Chart ([`features/admin/components/category-pie-chart.tsx`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/features/admin/components/category-pie-chart.tsx))**: Array-safe unpacking and multi-layer category resolution with distinct Warm Espresso palette slice colors per collection.
 * **Table & Grid View Switcher**: Segmented toggle with `List` and `LayoutGrid` icons and responsive Luxury Product Gallery Cards across all inventory portals.
 * **`CustomSelect` ([`components/ui/custom-select.tsx`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/components/ui/custom-select.tsx))**: Warm Espresso floating dropdown primitive.
 * **`ConfirmDialog` ([`components/ui/confirm-dialog.tsx`](file:///c:/Users/ADMIN/Desktop/Folder1/mini-erp/components/ui/confirm-dialog.tsx))**: Warm Espresso modal dialog for destructive confirmation.
@@ -110,7 +184,7 @@ All UI components strictly adhere to the Warm Espresso & Timber color palette:
 
 ---
 
-## 7. Strict Operational Guidelines
+## 10. Strict Operational Guidelines
 1. **No Auto Builds**: Do NOT run `npm run build` after file edits; only run when explicitly requested by the user.
 2. **No Auto Dev Server**: Do NOT start `npm run dev` automatically; user manages dev server in their terminal.
 3. **No Auto Git Commits**: Do NOT perform git commit or push commands without explicit user instruction.
