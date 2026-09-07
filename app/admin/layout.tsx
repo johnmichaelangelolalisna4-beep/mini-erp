@@ -1,13 +1,13 @@
 "use client";
 
 import React from "react";
-import { SidebarRail } from "@/components/sidebar-rail";
-import { MainSidebar } from "@/components/main-sidebar";
-import { TopHeader } from "@/components/top-header";
-import { AIChatAssistant } from "@/components/ai-chat-assistant";
+import { SidebarRail } from "@/components/layout/sidebar-rail";
+import { MainSidebar } from "@/components/layout/main-sidebar";
+import { TopHeader } from "@/components/layout/top-header";
+import { AIChatAssistant } from "@/features/ai-assistant";
 import { AIChatProvider } from "@/lib/context/ai-chat-context";
 import { MobileNavProvider } from "@/lib/context/mobile-nav-context";
-import { MobileNavDrawer } from "@/components/mobile-nav-drawer";
+import { MobileNavDrawer } from "@/components/layout/mobile-nav-drawer";
 
 export default function AdminLayout({
   children,

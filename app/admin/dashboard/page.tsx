@@ -10,16 +10,14 @@ import {
   Target,
   TrendingUp,
 } from "lucide-react";
-import { KpiCardsSection } from "@/components/kpi-card";
-import { RevenueBarChart } from "@/components/revenue-bar-chart";
-import { CategoryPieChart } from "@/components/category-pie-chart";
+import { KpiCardsSection, RevenueBarChart, CategoryPieChart } from "@/features/admin";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ToastNotification, ToastData } from "@/components/ui/toast-notification";
-import { fetchDashboardKPIs, Product, Order } from "@/lib/services/admin";
-import { createClient } from "@/lib/supabase/client";
+import { fetchDashboardKPIs, Product, Order } from "@/server/services/admin";
+import { createClient } from "@/server/supabase/client";
 
 const PRESET_QUOTAS = [
   { label: "₱50k Standard", value: 50000 },
