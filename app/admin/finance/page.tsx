@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   Download,
   Banknote,
@@ -15,6 +15,10 @@ import {
   AlertCircle,
   FileDown,
   Loader2,
+  ChevronDown,
+  CalendarDays,
+  CalendarRange,
+  Calendar,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,7 +27,45 @@ import { Input } from "@/components/ui/input";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { ToastNotification, ToastData } from "@/components/ui/toast-notification";
 import { fetchFinancialOverview, FinancialOverview } from "@/lib/services/admin";
-import { exportFinanceSummaryReport } from "@/lib/services/excel-export";
+import { exportFinanceSummaryReport, ReportPeriod } from "@/lib/services/excel-export";
+import { cn } from "@/lib/utils";
+
+const exportPeriodOptions: {
+  id: ReportPeriod;
+  title: string;
+  badge: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+}[] = [
+  {
+    id: "monthly",
+    title: "Monthly Summary",
+    badge: "Current Month",
+    description: "Financials, completed orders, and stock movements for this month",
+    icon: CalendarDays,
+  },
+  {
+    id: "quarterly",
+    title: "Quarterly Summary",
+    badge: "Current Qtr",
+    description: "Quarterly performance, expense tracking, and order volume",
+    icon: CalendarRange,
+  },
+  {
+    id: "annually",
+    title: "Annual Summary",
+    badge: "Fiscal Year",
+    description: "Full-year executive summary, cumulative profits, and taxes",
+    icon: Calendar,
+  },
+  {
+    id: "all",
+    title: "All-Time Historical",
+    badge: "Cumulative",
+    description: "Complete historical ledger, all sales orders, and catalog audit",
+    icon: FileSpreadsheet,
+  },
+];
 
 export function FinancePage() {
   const [financialData, setFinancialData] = useState<FinancialOverview>({
@@ -35,9 +77,28 @@ export function FinancePage() {
   });
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [exportingPeriod, setExportingPeriod] = useState<ReportPeriod | null>(null);
+  const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
+  const exportDropdownRef = useRef<HTMLDivElement>(null);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<"ALL" | "Income" | "Expense">("ALL");
   const [toast, setToast] = useState<ToastData | null>(null);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (exportDropdownRef.current && !exportDropdownRef.current.contains(e.target as Node)) {
+        setIsExportDropdownOpen(false);
+      }
+    };
+    if (isExportDropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isExportDropdownOpen]);
 
   const loadData = async () => {
     setLoading(true);
@@ -55,15 +116,19 @@ export function FinancePage() {
     loadData();
   }, []);
 
-  const handleExportReport = async () => {
+  const handleExportReport = async (period: ReportPeriod | React.MouseEvent = "all") => {
+    const targetPeriod: ReportPeriod = typeof period === "string" ? period : "all";
     setExporting(true);
+    setExportingPeriod(targetPeriod);
+    setIsExportDropdownOpen(false);
     try {
       const result = await exportFinanceSummaryReport({
         fileNamePrefix: "Mini_ERP_Sales_Financial_Summary",
+        period: targetPeriod,
       });
       setToast({
         type: "success",
-        title: "Report Exported",
+        title: `${result.periodLabel || "Report"} Exported`,
         message: `Excel spreadsheet "${result.fileName}" downloaded successfully.`,
       });
     } catch (err) {
@@ -75,6 +140,7 @@ export function FinancePage() {
       });
     } finally {
       setExporting(false);
+      setExportingPeriod(null);
     }
   };
 
@@ -122,23 +188,80 @@ export function FinancePage() {
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
               Refresh
             </Button>
-            <Button
-              onClick={handleExportReport}
-              disabled={exporting}
-              className="bg-[#713105] text-[#fff7e8] hover:bg-[#4f351c] gap-2 rounded-xl text-xs font-semibold px-4 py-2 cursor-pointer active:scale-95 transition-all shadow-xs disabled:opacity-70"
-            >
-              {exporting ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin text-[#cfab71]" />
-                  Generating Excel...
-                </>
-              ) : (
-                <>
-                  <Download className="w-4 h-4 text-[#cfab71]" />
-                  Export Summary Report
-                </>
+
+            {/* Export Summary Dropdown Button */}
+            <div className="relative inline-block" ref={exportDropdownRef}>
+              <Button
+                onClick={() => setIsExportDropdownOpen((prev) => !prev)}
+                disabled={exporting}
+                className="bg-[#713105] text-[#fff7e8] hover:bg-[#4f351c] gap-2 rounded-xl text-xs font-semibold px-4 py-2 cursor-pointer active:scale-95 transition-all shadow-xs disabled:opacity-70"
+              >
+                {exporting ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin text-[#cfab71]" />
+                    <span>
+                      Generating {exportingPeriod ? `${exportingPeriod.charAt(0).toUpperCase() + exportingPeriod.slice(1)} ` : ""}Excel...
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4 text-[#cfab71]" />
+                    <span>Export Summary Report</span>
+                    <ChevronDown
+                      className={cn(
+                        "w-3.5 h-3.5 text-[#cfab71] transition-transform duration-200 shrink-0",
+                        isExportDropdownOpen && "rotate-180"
+                      )}
+                    />
+                  </>
+                )}
+              </Button>
+
+              {isExportDropdownOpen && (
+                <div className="absolute right-0 top-full mt-2 w-76 rounded-2xl bg-white border border-[#e8decf] shadow-xl py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="px-3.5 py-2 border-b border-[#e8decf]/70 mb-1">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-[#713105]">
+                      Export Timeframe
+                    </p>
+                    <p className="text-[11px] text-[#7f5e35]">
+                      Select a period to generate targeted Excel report
+                    </p>
+                  </div>
+
+                  <div className="p-1 space-y-1">
+                    {exportPeriodOptions.map((opt) => {
+                      const Icon = opt.icon;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => handleExportReport(opt.id)}
+                          disabled={exporting}
+                          className="w-full text-left p-2.5 rounded-xl hover:bg-[#fff7e8] transition-colors flex items-start gap-3 group cursor-pointer active:scale-98 disabled:opacity-50"
+                        >
+                          <div className="p-2 rounded-lg bg-[#fcf3e3] text-[#713105] group-hover:bg-[#713105] group-hover:text-[#fff7e8] transition-colors shrink-0 mt-0.5">
+                            <Icon className="w-4 h-4" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="text-xs font-semibold text-[#341100] group-hover:text-[#713105]">
+                                {opt.title}
+                              </span>
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-[#fcf3e3] text-[#713105] border border-[#cfab71]/40 uppercase tracking-wide">
+                                {opt.badge}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-[#7f5e35] leading-tight mt-0.5 line-clamp-1">
+                              {opt.description}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
-            </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -253,7 +376,7 @@ export function FinancePage() {
 
             <Button
               variant="outline"
-              onClick={handleExportReport}
+              onClick={() => handleExportReport("all")}
               disabled={exporting}
               className="border-[#e8decf] text-[#4f351c] hover:bg-[#fff7e8] gap-1.5 text-xs rounded-xl cursor-pointer disabled:opacity-60"
               title="Download Excel spreadsheet"

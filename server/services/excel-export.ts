@@ -1,8 +1,11 @@
 import XLSX from 'xlsx-js-style';
 import { createClient } from '@/server/supabase/client';
 
+export type ReportPeriod = 'monthly' | 'quarterly' | 'annually' | 'all';
+
 export interface ExportReportOptions {
   fileNamePrefix?: string;
+  period?: ReportPeriod;
 }
 
 // ---------------------------------------------------------------------------
@@ -126,6 +129,40 @@ function fmtCurrency(val: number): string {
  */
 export async function exportFinanceSummaryReport(options: ExportReportOptions = {}) {
   const supabase = createClient();
+  const period = options.period || 'all';
+  const now = new Date();
+
+  let periodTitle = 'EXECUTIVE SUMMARY (ALL-TIME)';
+  let periodSubtitle = 'All Historical Records';
+  let startDate: Date | null = null;
+  let endDate: Date | null = null;
+  let filePeriodSlug = 'All_Time';
+
+  if (period === 'monthly') {
+    startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    const monthName = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    periodTitle = `MONTHLY PERFORMANCE REPORT — ${monthName.toUpperCase()}`;
+    periodSubtitle = `Reporting Period: ${monthName}`;
+    filePeriodSlug = `Monthly_${now.toLocaleDateString('en-US', { month: 'short' })}_${now.getFullYear()}`;
+  } else if (period === 'quarterly') {
+    const qIndex = Math.floor(now.getMonth() / 3);
+    const qStartMonth = qIndex * 3;
+    startDate = new Date(now.getFullYear(), qStartMonth, 1, 0, 0, 0, 0);
+    endDate = new Date(now.getFullYear(), qStartMonth + 3, 0, 23, 59, 59, 999);
+    const qName = `Q${qIndex + 1} ${now.getFullYear()}`;
+    const startMonthName = new Date(now.getFullYear(), qStartMonth, 1).toLocaleDateString('en-US', { month: 'short' });
+    const endMonthName = new Date(now.getFullYear(), qStartMonth + 2, 1).toLocaleDateString('en-US', { month: 'short' });
+    periodTitle = `QUARTERLY PERFORMANCE REPORT — ${qName}`;
+    periodSubtitle = `Reporting Period: ${qName} (${startMonthName} – ${endMonthName} ${now.getFullYear()})`;
+    filePeriodSlug = `Quarterly_Q${qIndex + 1}_${now.getFullYear()}`;
+  } else if (period === 'annually') {
+    startDate = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+    endDate = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+    periodTitle = `ANNUAL PERFORMANCE REPORT — FISCAL YEAR ${now.getFullYear()}`;
+    periodSubtitle = `Reporting Period: FY ${now.getFullYear()}`;
+    filePeriodSlug = `Annual_FY${now.getFullYear()}`;
+  }
 
   // 1. Fetch live data from Supabase in parallel
   const [ordersRes, productsRes, invoicesRes, stockLogsRes, profilesRes] = await Promise.all([
@@ -136,11 +173,23 @@ export async function exportFinanceSummaryReport(options: ExportReportOptions = 
     supabase.from('profiles').select('*').order('created_at', { ascending: false }),
   ]);
 
-  const orders = ordersRes.data || [];
+  const rawOrders = ordersRes.data || [];
   const products = productsRes.data || [];
-  const invoices = invoicesRes.data || [];
-  const stockLogs = stockLogsRes.data || [];
+  const rawInvoices = invoicesRes.data || [];
+  const rawStockLogs = stockLogsRes.data || [];
   const profiles = profilesRes.data || [];
+
+  // Filter dynamic collections by timeframe
+  const isWithinPeriod = (dateStr?: string | null) => {
+    if (!startDate || !endDate) return true;
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    return d >= startDate && d <= endDate;
+  };
+
+  const orders = rawOrders.filter((o) => isWithinPeriod(o.created_at));
+  const stockLogs = rawStockLogs.filter((log: any) => isWithinPeriod(log.created_at));
+  const invoices = rawInvoices.filter((inv: any) => isWithinPeriod(inv.created_at));
 
   // 2. Compute dynamic financial metrics
   const completedOrders = orders.filter((o) => o.status === 'COMPLETED');
@@ -171,7 +220,6 @@ export async function exportFinanceSummaryReport(options: ExportReportOptions = 
     (p) => Number(p.stock_count || 0) <= Number(p.reorder_level || 0)
   );
 
-  const now = new Date();
   const reportDateStr = now.toLocaleDateString('en-US', {
     month: 'long',
     day: 'numeric',
@@ -194,9 +242,9 @@ export async function exportFinanceSummaryReport(options: ExportReportOptions = 
     // Row 0 (A1:C1)
     ['MINI-ERP LUXURY FURNITURE & INTERIOR LIVING', '', ''],
     // Row 1 (A2:C2)
-    ['EXECUTIVE SALES & FINANCIAL PERFORMANCE REPORT', '', ''],
+    [`EXECUTIVE SALES & FINANCIAL PERFORMANCE REPORT — ${periodTitle}`, '', ''],
     // Row 2 (A3:C3)
-    [`Report Generated: ${reportDateStr} at ${reportTimeStr}  |  Database Source: Supabase Live Production Database`, '', ''],
+    [`${periodSubtitle}  |  Generated: ${reportDateStr} at ${reportTimeStr}  |  Database Source: Supabase Live Database`, '', ''],
     // Row 3: Blank
     ['', '', ''],
 
@@ -319,24 +367,26 @@ export async function exportFinanceSummaryReport(options: ExportReportOptions = 
     'System Order ID',
   ];
 
-  const salesRows = orders.map((order: any) => [
-    order.order_number || `ORD-${order.id.slice(0, 8).toUpperCase()}`,
-    order.customer_name || 'Walk-in Client',
-    new Date(order.created_at).toLocaleDateString('en-US', {
-      month: 'short',
-      day: '2-digit',
-      year: 'numeric',
-    }),
-    order.quantity || 1,
-    order.status || 'PENDING',
-    fmtCurrency(Number(order.total_amount || 0)),
-    order.created_by_role || 'Sales Rep',
-    order.id,
-  ]);
+  const salesRows = orders.length > 0
+    ? orders.map((order: any) => [
+        order.order_number || `ORD-${order.id.slice(0, 8).toUpperCase()}`,
+        order.customer_name || 'Walk-in Client',
+        new Date(order.created_at).toLocaleDateString('en-US', {
+          month: 'short',
+          day: '2-digit',
+          year: 'numeric',
+        }),
+        order.quantity || 1,
+        order.status || 'PENDING',
+        fmtCurrency(Number(order.total_amount || 0)),
+        order.created_by_role || 'Sales Rep',
+        order.id,
+      ])
+    : [[ 'N/A', `No orders recorded for ${periodSubtitle.toLowerCase()}`, '-', 0, 'NONE', '₱0.00', '-', '-' ]];
 
   const salesSheetData = [
     ['MINI-ERP SALES ORDERS DETAILED REPORT', '', '', '', '', '', '', ''],
-    [`Total Orders: ${orders.length}  |  Gross Sales: ${fmtCurrency(grossRevenue)}  |  Report Date: ${reportDateStr}`, '', '', '', '', '', '', ''],
+    [`${periodSubtitle}  |  Total Orders: ${orders.length}  |  Gross Sales: ${fmtCurrency(grossRevenue)}  |  Report Date: ${reportDateStr}`, '', '', '', '', '', '', ''],
     ['', '', '', '', '', '', '', ''],
     salesHeader,
     ...salesRows,
@@ -437,9 +487,21 @@ export async function exportFinanceSummaryReport(options: ExportReportOptions = 
     }
   });
 
+  if (ledgerRows.length === 0) {
+    ledgerRows.push([
+      'N/A',
+      reportDateStr,
+      'No Entries',
+      `No financial transactions recorded for ${periodSubtitle.toLowerCase()}`,
+      'Neutral',
+      '₱0.00',
+      '₱0.00',
+    ]);
+  }
+
   const ledgerSheetData = [
     ['MINI-ERP GENERAL LEDGER & CASHFLOW JOURNAL', '', '', '', '', '', ''],
-    [`Total Entries: ${ledgerRows.length}  |  Net Balance: ${fmtCurrency(runningBalance)}  |  Report Date: ${reportDateStr}`, '', '', '', '', '', ''],
+    [`${periodSubtitle}  |  Total Entries: ${ledgerRows.length}  |  Net Balance: ${fmtCurrency(runningBalance)}  |  Report Date: ${reportDateStr}`, '', '', '', '', '', ''],
     ['', '', '', '', '', '', ''],
     ledgerHeader,
     ...ledgerRows,
@@ -615,12 +677,14 @@ export async function exportFinanceSummaryReport(options: ExportReportOptions = 
   }
 
   // 4. Trigger Dynamic Excel File Download in Browser
-  const fileName = `${options.fileNamePrefix || 'Mini_ERP_Sales_Financial_Report'}_${isoDateStr}.xlsx`;
+  const fileName = `${options.fileNamePrefix || 'Mini_ERP_Sales_Financial_Summary'}_${filePeriodSlug}_${isoDateStr}.xlsx`;
   XLSX.writeFile(workbook, fileName);
 
   return {
     success: true,
     fileName,
+    period,
+    periodLabel: periodSubtitle,
     totalOrders: orders.length,
     grossRevenue,
     netProfit,
